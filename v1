@@ -1,0 +1,1686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CX Metrics Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #141720;
+    --surface2: #1c2030;
+    --border: #252a3a;
+    --text: #e8eaf0;
+    --muted: #5a6180;
+    --accent: #4f8ef7;
+    --accent2: #7c5cfc;
+    --green: #22c55e;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+    --orange: #f97316;
+    --teal: #14b8a6;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    padding: 28px 40px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+  }
+  .logo { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--muted); letter-spacing: 0.2em; text-transform: uppercase; }
+  header h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .date-pill {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    border-radius: 20px;
+    color: var(--muted);
+  }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    padding: 20px 40px 0;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    padding: 10px 24px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    border-radius: 8px 8px 0 0;
+    color: var(--muted);
+    transition: all 0.2s;
+    border: 1px solid transparent;
+    border-bottom: none;
+    user-select: none;
+  }
+  .tab:hover { color: var(--text); background: var(--surface2); }
+  .tab.active {
+    color: var(--accent);
+    background: var(--bg);
+    border-color: var(--border);
+    border-bottom-color: var(--bg);
+    margin-bottom: -1px;
+    z-index: 1;
+  }
+
+  main { padding: 32px 40px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* STAT CARDS */
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    border-top: 2px solid var(--accent-color, var(--accent));
+  }
+  .stat-label { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--muted); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 10px; }
+  .stat-value { font-size: 30px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; color: var(--accent-color, var(--text)); }
+  .stat-sub { font-size: 10px; color: var(--muted); margin-top: 5px; font-family: 'DM Mono', monospace; }
+
+  /* CHARTS GRID */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px 22px 18px;
+  }
+  .chart-card.full { grid-column: 1 / -1; }
+  .chart-title {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .chart-title span { color: var(--text); font-size: 13px; font-family: 'Syne', sans-serif; font-weight: 700; letter-spacing: 0; }
+  .chart-wrap { position: relative; }
+  .chart-wrap canvas { width: 100% !important; }
+
+  /* SECTION TITLE */
+  .section-title {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* IMPLEMENTATIONS */
+  .impl-stat-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .epics-grid { display: flex; flex-direction: column; gap: 16px; }
+  .epic-group {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .epic-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    background: var(--surface2);
+    cursor: pointer;
+    user-select: none;
+    gap: 16px;
+  }
+  .epic-header:hover { background: #20253a; }
+  .epic-meta { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+  .epic-key { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); flex-shrink: 0; }
+  .epic-name { font-weight: 700; font-size: 14px; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .epic-category {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    padding: 3px 9px;
+    border-radius: 20px;
+    flex-shrink: 0;
+    letter-spacing: 0.08em;
+  }
+  .epic-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .epic-assignee { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .epic-progress { display: flex; align-items: center; gap: 8px; }
+  .progress-bar { width: 80px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 2px; }
+  .progress-pct { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--muted); width: 32px; text-align: right; }
+  .chevron { color: var(--muted); font-size: 12px; transition: transform 0.2s; }
+  .epic-group.open .chevron { transform: rotate(180deg); }
+
+  .stories-table { width: 100%; border-collapse: collapse; }
+  .stories-table th {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 500;
+    padding: 10px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  .stories-table td {
+    padding: 10px 16px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  .stories-table tr:last-child td { border-bottom: none; }
+  .stories-table tr:hover td { background: rgba(79,142,247,0.04); }
+  .epic-update {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 10px 14px 12px;
+    border-top: 1px solid var(--border);
+    background: rgba(79,142,247,0.03);
+  }
+  .epic-update-icon { font-size: 13px; margin-top: 1px; flex-shrink: 0; }
+  .epic-update-body { flex: 1; min-width: 0; }
+  .epic-update-meta { font-size: 10px; color: var(--muted); margin-bottom: 4px; font-family: 'DM Mono', monospace; }
+  .epic-update-text {
+    font-size: 12px; color: var(--text); line-height: 1.55;
+    white-space: pre-wrap; word-break: break-word;
+  }
+
+  /* BADGES */
+  .badge {
+    display: inline-block;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+  .badge-done { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+  .badge-inprogress { background: rgba(79,142,247,0.12); color: var(--accent); border: 1px solid rgba(79,142,247,0.2); }
+  .badge-todo { background: rgba(90,97,128,0.2); color: var(--muted); border: 1px solid var(--border); }
+
+  .due-date { font-family: 'DM Mono', monospace; font-size: 11px; display: flex; align-items: center; gap: 6px; }
+  .due-date.overdue { color: var(--red); }
+  .due-date.due-soon { color: var(--yellow); }
+  .due-date.ok { color: var(--muted); }
+  .due-date.no-date { color: var(--border); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+  /* SUPPORT TABLE */
+  .support-filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .filter-label { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .filter-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: all 0.15s;
+  }
+  .filter-btn:hover, .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .search-wrap { position: relative; margin-bottom: 14px; }
+  .search-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px 10px 38px;
+    font-size: 13px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .search-input::placeholder { color: var(--muted); }
+  .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 14px; }
+
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .data-table { width: 100%; border-collapse: collapse; }
+  .data-table th {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 500;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  .data-table td {
+    padding: 9px 14px;
+    font-size: 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: rgba(79,142,247,0.04); }
+  .truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+  .mono { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+
+  .badge-urgent { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+  .badge-high { background: rgba(249,115,22,0.12); color: var(--orange); border: 1px solid rgba(249,115,22,0.2); }
+  .badge-normal { background: rgba(90,97,128,0.2); color: var(--muted); border: 1px solid var(--border); }
+  .badge-low { background: rgba(90,97,128,0.1); color: var(--muted); border: 1px solid var(--border); }
+  .badge-bug { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+  .badge-question { background: rgba(124,92,252,0.12); color: var(--accent2); border: 1px solid rgba(124,92,252,0.2); }
+  .badge-task { background: rgba(20,184,166,0.12); color: var(--teal); border: 1px solid rgba(20,184,166,0.2); }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .page-btns { display: flex; gap: 6px; }
+  .page-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 4px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    transition: all 0.15s;
+  }
+  .page-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .page-btn:disabled { opacity: 0.3; cursor: default; }
+
+  .hidden { display: none; }
+
+  .hours-cell {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+  }
+  .hours-fast { color: var(--green); }
+  .hours-ok { color: var(--yellow); }
+  .hours-slow { color: var(--red); }
+
+  /* ENGINEERING ESCALATION */
+  .escalation-section {
+    margin-top: 28px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px 22px 18px;
+  }
+  .escalation-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .esc-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .esc-number { font-size: 32px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+  .esc-label { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; margin-top: 6px; }
+  .esc-sub { font-size: 10px; color: var(--muted); margin-top: 4px; font-family: 'DM Mono', monospace; }
+  .esc-breakdown { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; }
+  .esc-row { display: flex; align-items: center; gap: 8px; }
+  .esc-row-label { font-size: 11px; flex: 1; }
+  .esc-bar-bg { flex: 2; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .esc-bar-fill { height: 100%; border-radius: 2px; }
+  .esc-count { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); width: 28px; text-align: right; }
+
+  /* BUGS & TASKS TAB */
+  .bugs-stat-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .table-tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .table-tab {
+    padding: 7px 20px;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    cursor: pointer;
+    border-radius: 6px 6px 0 0;
+    color: var(--muted);
+    border: 1px solid transparent;
+    border-bottom: none;
+    background: transparent;
+    letter-spacing: 0.06em;
+    transition: all 0.15s;
+  }
+  .table-tab.active { color: var(--accent); border-color: var(--border); border-bottom-color: var(--bg); background: var(--bg); margin-bottom: -1px; }
+  .table-tab:hover:not(.active) { color: var(--text); background: var(--surface2); }
+
+  /* EPIC LINKED ITEMS */
+  .epic-linked {
+    border-top: 1px solid var(--border);
+    padding: 10px 16px 12px;
+    background: rgba(124,92,252,0.02);
+  }
+  .epic-linked-title {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 8px;
+  }
+  .epic-linked-list { display: flex; flex-direction: column; gap: 4px; }
+  .epic-linked-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    background: var(--surface2);
+  }
+  .item-type-icon { font-size: 10px; flex-shrink: 0; }
+  .item-key { font-family: 'DM Mono', monospace; color: var(--muted); flex-shrink: 0; font-size: 10px; }
+  .item-summary { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .badge-item-open { background: rgba(90,97,128,0.15); color: var(--muted); border: 1px solid var(--border); }
+  .badge-item-inprogress { background: rgba(79,142,247,0.12); color: var(--accent); border: 1px solid rgba(79,142,247,0.2); }
+  .badge-item-done { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+  .badge-item-blocked { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">Winmore · CX Operations</div>
+    <h1>Customer Experience Metrics</h1>
+  </div>
+  <div class="header-right">
+    <div class="date-pill">As of Jun 20, 2026</div>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('implementations')">Implementations</div>
+  <div class="tab" onclick="switchTab('support')">Support Tickets · 2026</div>
+  <div class="tab" onclick="switchTab('bugs')">Bugs &amp; Tasks</div>
+</div>
+
+<main>
+
+<!-- IMPLEMENTATIONS -->
+<div class="panel active" id="panel-implementations">
+  <div class="impl-stat-row" id="impl-stats"></div>
+  <div class="section-title">
+    <span>Epics &amp; Stories</span>
+    <span id="impl-overdue-label" style="color:var(--red)"></span>
+  </div>
+  <div class="epics-grid" id="epics-grid"></div>
+</div>
+
+<!-- SUPPORT -->
+<div class="panel" id="panel-support">
+  <div class="support-filters" style="margin-bottom:16px">
+    <span class="filter-label">Period:</span>
+    <button class="filter-btn time-filter-btn active" onclick="setTimeFilter('all',this)">All 2026</button>
+    <button class="filter-btn time-filter-btn" onclick="setTimeFilter(1,this)">Jan</button>
+    <button class="filter-btn time-filter-btn" onclick="setTimeFilter(2,this)">Feb</button>
+    <button class="filter-btn time-filter-btn" onclick="setTimeFilter(3,this)">Mar</button>
+    <button class="filter-btn time-filter-btn" onclick="setTimeFilter(4,this)">Apr</button>
+    <button class="filter-btn time-filter-btn" onclick="setTimeFilter(5,this)">May</button>
+    <button class="filter-btn time-filter-btn" onclick="setTimeFilter(6,this)">Jun</button>
+  </div>
+  <div class="stat-row" id="supp-stats"></div>
+
+  <div class="charts-grid">
+    <!-- Monthly trend - full width -->
+    <div class="chart-card full">
+      <div class="chart-title">Monthly Trend <span>Median resolve time (hours)</span></div>
+      <div class="chart-wrap" style="height:200px">
+        <canvas id="chart-monthly"></canvas>
+      </div>
+    </div>
+
+    <!-- Distribution -->
+    <div class="chart-card">
+      <div class="chart-title">Distribution <span>Ticket count by resolve time bucket</span></div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="chart-dist"></canvas>
+      </div>
+    </div>
+
+    <!-- Priority -->
+    <div class="chart-card">
+      <div class="chart-title">By Priority <span>Median resolve time (hours)</span></div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="chart-priority"></canvas>
+      </div>
+    </div>
+
+    <!-- Assignee -->
+    <div class="chart-card">
+      <div class="chart-title">By Assignee <span>Median resolve time · 3+ tickets</span></div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="chart-assignee"></canvas>
+      </div>
+    </div>
+
+    <!-- Type -->
+    <div class="chart-card">
+      <div class="chart-title">By Request Type <span>Median resolve time (hours)</span></div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="chart-type"></canvas>
+      </div>
+    </div>
+
+    <!-- Monthly Volume - only visible in All view -->
+    <div class="chart-card full" id="card-volume" style="display:none">
+      <div class="chart-title">Monthly Volume <span>Tickets received per month</span></div>
+      <div class="chart-wrap" style="height:180px">
+        <canvas id="chart-volume"></canvas>
+      </div>
+    </div>
+
+    <!-- Top Subjects - only visible in All view -->
+    <div class="chart-card" id="card-top-types" style="display:none">
+      <div class="chart-title">Most Common Subjects <span>Top ticket categories by count</span></div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="chart-top-types"></canvas>
+      </div>
+    </div>
+
+    <!-- Org volume -->
+    <div class="chart-card" id="card-org-volume" style="display:none">
+      <div class="chart-title">By Organisation <span>Ticket count (top customers)</span></div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="chart-org-volume"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Engineering Escalation Section -->
+  <div id="supp-escalation"></div>
+
+</div>
+
+<!-- BUGS & TASKS PANEL -->
+<div class="panel" id="panel-bugs">
+  <div class="support-filters" style="margin-bottom:16px">
+    <span class="filter-label">Customer:</span>
+    <button class="filter-btn bugs-cust-btn active" onclick="setBugsCust('',this)">All</button>
+    <button class="filter-btn bugs-cust-btn" onclick="setBugsCust('MSC',this)">MSC</button>
+    <button class="filter-btn bugs-cust-btn" onclick="setBugsCust('Gebruder Weiss',this)">GW</button>
+    <button class="filter-btn bugs-cust-btn" onclick="setBugsCust('AIT',this)">AIT</button>
+    <button class="filter-btn bugs-cust-btn" onclick="setBugsCust('Titanium',this)">Titanium</button>
+    <button class="filter-btn bugs-cust-btn" onclick="setBugsCust('JAS',this)">JAS</button>
+    <button class="filter-btn bugs-cust-btn" onclick="setBugsCust('Flexport',this)">Flexport</button>
+    <button class="filter-btn bugs-cust-btn" onclick="setBugsCust('Yusen',this)">Yusen</button>
+  </div>
+  <div class="bugs-stat-row" id="bugs-stats"></div>
+
+  <div class="table-tabs" style="margin-bottom:16px">
+    <button class="table-tab active" id="tab-bugs-btn" onclick="switchBugsTable('bugs')">🐛 Bugs</button>
+    <button class="table-tab" id="tab-tasks-btn" onclick="switchBugsTable('tasks')">✅ Tasks</button>
+  </div>
+
+  <div class="search-wrap" style="margin-bottom:14px">
+    <span class="search-icon">🔍</span>
+    <input class="search-input" id="bugs-search" type="text" placeholder="Search by key, summary, customer, status…" oninput="filterBugsTable()">
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr>
+        <th>Key</th>
+        <th style="min-width:320px">Summary</th>
+        <th>Customer</th>
+        <th>Status</th>
+        <th>Assignee</th>
+      </tr></thead>
+      <tbody id="bugs-tbody"></tbody>
+    </table>
+    <div class="pagination">
+      <span id="bugs-page-info"></span>
+      <div class="page-btns">
+        <button class="page-btn" id="bugs-btn-prev" onclick="changeBugsPage(-1)">← Prev</button>
+        <button class="page-btn" id="bugs-btn-next" onclick="changeBugsPage(1)">Next →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+// ── CHART.JS GLOBAL DEFAULTS ──────────────────────────────────────────────────
+Chart.defaults.color = '#5a6180';
+Chart.defaults.font.family = "'DM Mono', monospace";
+Chart.defaults.font.size = 11;
+
+const COLORS = {
+  accent: '#4f8ef7',
+  accent2: '#7c5cfc',
+  green: '#22c55e',
+  yellow: '#f59e0b',
+  red: '#ef4444',
+  orange: '#f97316',
+  teal: '#14b8a6',
+  muted: '#5a6180',
+  border: '#252a3a',
+  surface: '#141720',
+};
+
+const gridOpts = {
+  color: '#252a3a',
+  drawBorder: false,
+};
+const tickOpts = { color: '#5a6180' };
+
+// ── SUPPORT HELPERS ───────────────────────────────────────────────────────────
+function statsMedian(arr) {
+  if (!arr.length) return 0;
+  const s = [...arr].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+function statsMean(arr) {
+  return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+}
+function r1(v) { return Math.round(v * 10) / 10; }
+
+function computeSuppData(tickets) {
+  const hours = tickets.map(t => t.hours);
+  const priorities = ['Urgent', 'High', 'Normal', 'Low'];
+  const priority = priorities.map(p => {
+    const g = tickets.filter(t => t.priority === p).map(t => t.hours);
+    return [p, r1(statsMedian(g)), g.length];
+  }).filter(d => d[2] > 0);
+  const assigneeNames = ['Amrutha Nanda', 'Vaishaka Nalka'];
+  const assignee = assigneeNames.map(a => {
+    const g = tickets.filter(t => t.assignee === a).map(t => t.hours);
+    return [a, r1(statsMedian(g)), g.length];
+  }).filter(d => d[2] > 0);
+  const types = ['Task', 'Question', 'Bug'];
+  const type_data = types.map(tp => {
+    const g = tickets.filter(t => t.type === tp).map(t => t.hours);
+    return [tp, r1(statsMedian(g)), g.length];
+  }).filter(d => d[2] > 0);
+  const buckets = [
+    tickets.filter(t => t.hours <= 4).length,
+    tickets.filter(t => t.hours > 4 && t.hours <= 8).length,
+    tickets.filter(t => t.hours > 8 && t.hours <= 24).length,
+    tickets.filter(t => t.hours > 24 && t.hours <= 48).length,
+    tickets.filter(t => t.hours > 48 && t.hours <= 72).length,
+    tickets.filter(t => t.hours > 72 && t.hours <= 168).length,
+    tickets.filter(t => t.hours > 168).length,
+  ];
+  return {
+    total: tickets.length,
+    median: r1(statsMedian(hours)),
+    mean: r1(statsMean(hours)),
+    pct_24h: hours.length ? r1(hours.filter(h => h <= 24).length / hours.length * 100) : 0,
+    pct_7d: hours.length ? r1(hours.filter(h => h >= 168).length / hours.length * 100) : 0,
+    priority, assignee, type_data, buckets
+  };
+}
+
+let activeTimeFilter = 'all';
+let chartInstances = {};
+
+function setTimeFilter(val, btn) {
+  activeTimeFilter = val;
+  document.querySelectorAll('.time-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+  const filtered = activeTimeFilter === 'all' ? TICKETS : TICKETS.filter(t => t.month === activeTimeFilter);
+  const data = computeSuppData(filtered);
+  buildSuppStatsFrom(data);
+  if (chartsBuilt) { destroyCharts(); buildChartsFrom(filtered, data); }
+}
+
+function destroyCharts() {
+  Object.values(chartInstances).forEach(c => { try { c.destroy(); } catch(e) {} });
+  chartInstances = {};
+}
+
+// ── SUPPORT STATS ─────────────────────────────────────────────────────────────
+function buildSuppStats() {
+  buildSuppStatsFrom(computeSuppData(TICKETS));
+}
+
+function buildSuppStatsFrom(data) {
+  const s = [
+    { label: 'Total Tickets', value: data.total, sub: 'in selected period', color: 'var(--accent)' },
+    { label: 'Median Resolve', value: fmtHrs(data.median), sub: 'median hours to solve', color: 'var(--accent2)' },
+    { label: 'Mean Resolve', value: fmtHrs(data.mean), sub: 'mean hours to solve', color: 'var(--yellow)' },
+    { label: 'Within 24h', value: data.pct_24h + '%', sub: 'resolved same-day', color: 'var(--green)' },
+    { label: '7+ Days', value: data.pct_7d + '%', sub: 'took a week or more', color: 'var(--red)' },
+  ];
+  document.getElementById('supp-stats').innerHTML = s.map(c => `
+    <div class="stat-card" style="--accent-color:${c.color}">
+      <div class="stat-label">${c.label}</div>
+      <div class="stat-value">${c.value}</div>
+      <div class="stat-sub">${c.sub}</div>
+    </div>
+  `).join('');
+}
+
+function fmtHrs(h) {
+  if (h < 24) return h.toFixed(1) + 'h';
+  return (h / 24).toFixed(1) + 'd';
+}
+
+function getWeekOfMonth(dateStr) {
+  return Math.min(Math.ceil(new Date(dateStr).getDate() / 7), 5);
+}
+
+// ── CHARTS ────────────────────────────────────────────────────────────────────
+function buildCharts() {
+  const filtered = activeTimeFilter === 'all' ? TICKETS : TICKETS.filter(t => t.month === activeTimeFilter);
+  const data = computeSuppData(filtered);
+  buildSuppStatsFrom(data);
+  buildChartsFrom(filtered, data);
+}
+
+function buildChartsFrom(tickets, data) {
+  // Trend: monthly when All, weekly when specific month
+  let trendLabels, trendMedian, trendMean, trendTitle;
+  if (activeTimeFilter === 'all') {
+    const monthNums = [1,2,3,4,5,6];
+    trendLabels = ['Jan','Feb','Mar','Apr','May','Jun'];
+    trendMedian = monthNums.map(m => { const g = tickets.filter(t => t.month === m).map(t => t.hours); return g.length ? r1(statsMedian(g)) : null; });
+    trendMean   = monthNums.map(m => { const g = tickets.filter(t => t.month === m).map(t => t.hours); return g.length ? r1(statsMean(g))   : null; });
+    trendTitle  = 'Monthly Trend';
+  } else {
+    const weeks = [1,2,3,4,5];
+    trendLabels = ['W1','W2','W3','W4','W5'];
+    trendMedian = weeks.map(w => { const g = tickets.filter(t => getWeekOfMonth(t.requested) === w).map(t => t.hours); return g.length ? r1(statsMedian(g)) : null; });
+    trendMean   = weeks.map(w => { const g = tickets.filter(t => getWeekOfMonth(t.requested) === w).map(t => t.hours); return g.length ? r1(statsMean(g))   : null; });
+    const last  = Math.max(trendMedian.reduce((m,v,i) => v!==null?i:m,-1), trendMean.reduce((m,v,i) => v!==null?i:m,-1));
+    if (last >= 0) { trendLabels = trendLabels.slice(0,last+1); trendMedian = trendMedian.slice(0,last+1); trendMean = trendMean.slice(0,last+1); }
+    trendTitle = 'Weekly Trend';
+  }
+  const trendCard = document.getElementById('chart-monthly').closest('.chart-card');
+  trendCard.querySelector('.chart-title').innerHTML = `${trendTitle} <span>Median &amp; Mean resolve time (hours)</span>`;
+
+  chartInstances['monthly'] = new Chart(document.getElementById('chart-monthly'), {
+    type: 'line',
+    data: {
+      labels: trendLabels,
+      datasets: [
+        { label:'Median', data:trendMedian, borderColor:COLORS.accent, backgroundColor:'rgba(79,142,247,0.08)', pointBackgroundColor:COLORS.accent, pointRadius:5, pointHoverRadius:7, fill:true, tension:0.35 },
+        { label:'Mean',   data:trendMean,   borderColor:COLORS.accent2, backgroundColor:'transparent', pointBackgroundColor:COLORS.accent2, pointRadius:5, pointHoverRadius:7, fill:false, tension:0.35, borderDash:[4,3] }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: {
+        legend: { display:true, labels:{ color:'#5a6180', boxWidth:12, padding:16 } },
+        tooltip: { callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)} hrs` } }
+      },
+      scales: {
+        x: { grid:gridOpts, ticks:tickOpts, border:{ display:false } },
+        y: { grid:gridOpts, ticks:{ ...tickOpts, callback: v => v+'h' }, border:{ display:false } }
+      }
+    }
+  });
+
+  // Distribution
+  const bucketLabels = ['0–4h','4–8h','8–24h','24–48h','2–3d','3–7d','7d+'];
+  const bucketColors = [COLORS.green, COLORS.teal, COLORS.yellow, COLORS.orange, '#f97316', COLORS.red, '#991b1b'];
+  chartInstances['dist'] = new Chart(document.getElementById('chart-dist'), {
+    type:'bar',
+    data:{ labels:bucketLabels, datasets:[{ data:data.buckets, backgroundColor:bucketColors, borderRadius:4, borderSkipped:false }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ' '+ctx.parsed.y+' tickets' } } }, scales:{ x:{ grid:{display:false}, ticks:tickOpts, border:{display:false} }, y:{ grid:gridOpts, ticks:tickOpts, border:{display:false} } } }
+  });
+
+  // Priority
+  const pLabels = data.priority.map(d => d[0]);
+  const pColors = pLabels.map(p => ({Urgent:COLORS.red, High:COLORS.orange, Normal:COLORS.accent, Low:COLORS.muted}[p]||COLORS.accent));
+  chartInstances['priority'] = new Chart(document.getElementById('chart-priority'), {
+    type:'bar',
+    data:{ labels:pLabels, datasets:[{ data:data.priority.map(d=>d[1]), backgroundColor:pColors, borderRadius:4, borderSkipped:false }] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ' '+ctx.parsed.x.toFixed(1)+' hrs median' } } }, scales:{ x:{ grid:gridOpts, ticks:{ ...tickOpts, callback:v=>v+'h' }, border:{display:false} }, y:{ grid:{display:false}, ticks:tickOpts, border:{display:false} } } }
+  });
+
+  // Assignee
+  const aLabels  = data.assignee.map(d => d[0].split(' ')[0]);
+  const aCounts  = data.assignee.map(d => d[2]);
+  chartInstances['assignee'] = new Chart(document.getElementById('chart-assignee'), {
+    type:'bar',
+    data:{ labels:aLabels, datasets:[{ data:data.assignee.map(d=>d[1]), backgroundColor:[COLORS.green, COLORS.teal].slice(0,aLabels.length), borderRadius:4, borderSkipped:false }] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ` ${ctx.parsed.x.toFixed(1)} hrs median · n=${aCounts[ctx.dataIndex]}` } } }, scales:{ x:{ grid:gridOpts, ticks:{ ...tickOpts, callback:v=>v+'h' }, border:{display:false} }, y:{ grid:{display:false}, ticks:tickOpts, border:{display:false} } } }
+  });
+
+  // Type
+  chartInstances['type'] = new Chart(document.getElementById('chart-type'), {
+    type:'bar',
+    data:{ labels:data.type_data.map(d=>d[0]), datasets:[{ data:data.type_data.map(d=>d[1]), backgroundColor:[COLORS.teal, COLORS.accent, COLORS.red].slice(0,data.type_data.length), borderRadius:4, borderSkipped:false }] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ' '+ctx.parsed.x.toFixed(1)+' hrs median' } } }, scales:{ x:{ grid:gridOpts, ticks:{ ...tickOpts, callback:v=>v+'h' }, border:{display:false} }, y:{ grid:{display:false}, ticks:tickOpts, border:{display:false} } } }
+  });
+
+  // Monthly Volume (All view only), Categories + Org (always shown, filtered)
+  const isAll = activeTimeFilter === 'all';
+  document.getElementById('card-volume').style.display = isAll ? '' : 'none';
+  document.getElementById('card-top-types').style.display = '';
+  document.getElementById('card-org-volume').style.display = '';
+
+  if (isAll) {
+    const monthNums = [1,2,3,4,5,6];
+    const volLabels = ['Jan','Feb','Mar','Apr','May','Jun'];
+    const volCounts = monthNums.map(m => tickets.filter(t => t.month === m).length);
+    const volColors = volCounts.map(v => {
+      const max = Math.max(...volCounts);
+      const alpha = 0.4 + 0.6 * (v / max);
+      return `rgba(79,142,247,${alpha.toFixed(2)})`;
+    });
+    chartInstances['volume'] = new Chart(document.getElementById('chart-volume'), {
+      type:'bar',
+      data:{ labels:volLabels, datasets:[{ data:volCounts, backgroundColor:volColors, borderRadius:5, borderSkipped:false }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ' '+ctx.parsed.y+' tickets' } } }, scales:{ x:{ grid:{display:false}, ticks:tickOpts, border:{display:false} }, y:{ grid:gridOpts, ticks:tickOpts, border:{display:false} } } }
+    });
+  }
+
+  // Org volume top 8 (always, filtered)
+  const orgMap = {};
+  tickets.forEach(t => { const o = t.org || 'Unknown'; orgMap[o] = (orgMap[o]||0)+1; });
+  const topOrgs = Object.entries(orgMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const orgColors = ['#4f8ef7','#7c5cfc','#22c55e','#f59e0b','#14b8a6','#f97316','#ef4444','#5a6180'];
+  chartInstances['orgVol'] = new Chart(document.getElementById('chart-org-volume'), {
+    type:'bar',
+    data:{ labels:topOrgs.map(o=>o[0]), datasets:[{ data:topOrgs.map(o=>o[1]), backgroundColor:orgColors, borderRadius:4, borderSkipped:false }] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ' '+ctx.parsed.x+' tickets' } } }, scales:{ x:{ grid:gridOpts, ticks:tickOpts, border:{display:false} }, y:{ grid:{display:false}, ticks:{...tickOpts, font:{size:10}}, border:{display:false} } } }
+  });
+
+  // Top types by count (always, filtered)
+  const typeMap = {};
+  tickets.forEach(t => { const tp = t.type || 'Uncategorized'; typeMap[tp] = (typeMap[tp]||0)+1; });
+  const topTypes = Object.entries(typeMap).sort((a,b)=>b[1]-a[1]);
+  const typeColors2 = [COLORS.accent2, COLORS.accent, COLORS.teal, COLORS.yellow, COLORS.orange, COLORS.red];
+  chartInstances['topTypes'] = new Chart(document.getElementById('chart-top-types'), {
+    type:'doughnut',
+    data:{ labels:topTypes.map(t=>t[0]||'—'), datasets:[{ data:topTypes.map(t=>t[1]), backgroundColor:typeColors2.slice(0,topTypes.length), borderWidth:2, borderColor:'#141720' }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:true, position:'right', labels:{color:'#5a6180', boxWidth:10, padding:12, font:{size:11}} }, tooltip:{ callbacks:{ label: ctx => ` ${ctx.label}: ${ctx.parsed} tickets` } } } }
+  });
+
+  // Engineering Escalation Section
+  buildEscalationSection(tickets);
+}
+
+function buildEscalationSection(tickets) {
+  const withJira = tickets.filter(t => t.jira && t.jira !== '-');
+  const withoutJira = tickets.filter(t => !t.jira || t.jira === '-');
+  const pct = tickets.length ? Math.round(withJira.length / tickets.length * 100) : 0;
+
+  // Breakdown by type for escalated tickets
+  const typeBreakdown = {};
+  withJira.forEach(t => { const tp = t.type || 'Other'; typeBreakdown[tp] = (typeBreakdown[tp]||0)+1; });
+  const typeRows = Object.entries(typeBreakdown).sort((a,b)=>b[1]-a[1]);
+  const maxTypeCount = typeRows.length ? typeRows[0][1] : 1;
+
+  // Avg resolve for escalated vs non-escalated
+  const escHours = withJira.map(t=>t.hours);
+  const nonEscHours = withoutJira.map(t=>t.hours);
+  const escMedian = r1(statsMedian(escHours));
+  const nonEscMedian = r1(statsMedian(nonEscHours));
+
+  const typeColorsMap = {Bug:COLORS.red, Question:COLORS.accent2, Task:COLORS.teal, '':COLORS.muted};
+
+  document.getElementById('supp-escalation').innerHTML = `
+    <div class="escalation-section">
+      <div class="chart-title">Engineering Escalation <span>Tickets linked to a Jira issue</span></div>
+      <div class="escalation-grid">
+        <div class="esc-card">
+          <div class="esc-number" style="color:var(--orange)">${withJira.length}</div>
+          <div class="esc-label">Escalated to Eng</div>
+          <div class="esc-sub">${pct}% of selected tickets · ${withoutJira.length} resolved without Jira</div>
+        </div>
+        <div class="esc-card">
+          <div class="esc-number" style="color:var(--red)">${fmtHrs(escMedian)}</div>
+          <div class="esc-label">Median Resolve (Escalated)</div>
+          <div class="esc-sub">vs ${fmtHrs(nonEscMedian)} for non-escalated — ${r1((escMedian/Math.max(nonEscMedian,1)-1)*100)}% longer</div>
+        </div>
+        <div class="esc-card">
+          <div class="esc-label" style="margin-bottom:10px">Escalation by Type</div>
+          <div class="esc-breakdown">
+            ${typeRows.map(([tp, cnt]) => `
+              <div class="esc-row">
+                <span class="esc-row-label">${tp||'—'}</span>
+                <div class="esc-bar-bg"><div class="esc-bar-fill" style="width:${Math.round(cnt/maxTypeCount*100)}%;background:${typeColorsMap[tp]||COLORS.accent}"></div></div>
+                <span class="esc-count">${cnt}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ── SUPPORT TABLE ─────────────────────────────────────────────────────────────
+const TICKETS = [{"id":11048,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"NTG","jira":"WINMORE-9162","requested":"2026-01-07T22:39:00","month":1,"hours":3712.15},{"id":11052,"assignee":"Dominyka Pladyte (app)","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-01-08T11:27:00","month":1,"hours":1101.65},{"id":11065,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"DPW","jira":"WINMORE-9169","requested":"2026-01-09T10:54:00","month":1,"hours":1352.4},{"id":11085,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"Flexport","jira":"WINMORE-9209","requested":"2026-01-13T20:11:00","month":1,"hours":918.92},{"id":11103,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Bug","org":"Yusen Logistics","jira":"WINMORE-8212","requested":"2026-01-16T03:39:00","month":1,"hours":1471.58},{"id":11108,"assignee":"Dominyka Pladyte (app)","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-01-19T04:08:00","month":1,"hours":844.97},{"id":11121,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"WINMORE-9223","requested":"2026-01-20T20:42:00","month":1,"hours":656.5},{"id":11153,"assignee":"Amrutha Nanda","priority":"Normal","type":"Bug","org":"Yusen Logistics","jira":"WINMORE-9295","requested":"2026-01-29T03:31:00","month":1,"hours":1351.73},{"id":11154,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"-","requested":"2026-01-29T13:41:00","month":1,"hours":284.15},{"id":11157,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"WINMORE-9314, WINMORE-9331","requested":"2026-02-02T16:30:00","month":2,"hours":172.93},{"id":11166,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"-","requested":"2026-02-04T08:36:00","month":2,"hours":382.1},{"id":11169,"assignee":"Vaishaka Nalka","priority":"Low","type":"Question","org":"NTG","jira":"-","requested":"2026-02-05T19:38:00","month":2,"hours":25.73},{"id":11170,"assignee":"Vaishaka Nalka","priority":"Low","type":"Task","org":"CHR WW","jira":"WINMORE-9333, WINMORE-9482","requested":"2026-02-05T22:08:00","month":2,"hours":2771.88},{"id":11171,"assignee":"Muiz Pasha","priority":"Low","type":"Question","org":"Samskip","jira":"-","requested":"2026-02-06T11:17:00","month":2,"hours":172.82},{"id":11172,"assignee":"Muiz Pasha","priority":"Low","type":"Question","org":"DPW","jira":"WINMORE-9346","requested":"2026-02-06T11:45:00","month":2,"hours":449.5},{"id":11174,"assignee":"Amrutha Nanda","priority":"Normal","type":"Bug","org":"Yusen Logistics","jira":"WINMORE-9362","requested":"2026-02-09T09:26:00","month":2,"hours":262.98},{"id":11178,"assignee":"Vaishaka Nalka","priority":"Urgent","type":"Question","org":"CHR WW","jira":"WINMORE-9364","requested":"2026-02-09T18:55:00","month":2,"hours":177.63},{"id":11183,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"DPW","jira":"WMCM-565","requested":"2026-02-11T09:06:00","month":2,"hours":1341.53},{"id":11184,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"Winmore","jira":"-","requested":"2026-02-11T12:44:00","month":2,"hours":224.78},{"id":11185,"assignee":"Vaishaka Nalka","priority":"Low","type":"Task","org":"DPW","jira":"WINMORE-9403","requested":"2026-02-11T14:34:00","month":2,"hours":1177.1},{"id":11186,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"-","requested":"2026-02-13T03:06:00","month":2,"hours":3.67},{"id":11190,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"DPW","jira":"WINMORE-9415","requested":"2026-02-16T12:02:00","month":2,"hours":272.98},{"id":11191,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"DPW","jira":"-","requested":"2026-02-16T12:07:00","month":2,"hours":90.6},{"id":11192,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"Winmore","jira":"-","requested":"2026-02-16T15:05:00","month":2,"hours":42.95},{"id":11193,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"WWEX","jira":"WINMORE-9402","requested":"2026-02-16T17:13:00","month":2,"hours":48.37},{"id":11194,"assignee":"Vaishaka Nalka","priority":"High","type":"Question","org":"NTG","jira":"WINMORE-9402, WINMORE-9404","requested":"2026-02-16T17:46:00","month":2,"hours":27.07},{"id":11195,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Flexport","jira":"-","requested":"2026-02-16T22:03:00","month":2,"hours":45.3},{"id":11197,"assignee":"Vaishaka Nalka","priority":"High","type":"Question","org":"P&O","jira":"-","requested":"2026-02-17T15:53:00","month":2,"hours":45.33},{"id":11198,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"Flexport","jira":"-","requested":"2026-02-17T18:20:00","month":2,"hours":2.85},{"id":11200,"assignee":"Vaishaka Nalka","priority":"Low","type":"Task","org":"P&O","jira":"-","requested":"2026-02-18T10:59:00","month":2,"hours":2569.48},{"id":11201,"assignee":"Muiz Pasha","priority":"Low","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-02-18T11:23:00","month":2,"hours":42.38},{"id":11202,"assignee":"David Amezquita","priority":"Low","type":"Question","org":"DPW","jira":"WINMORE-9442, WINMORE-9445, WINMORE-9481","requested":"2026-02-19T07:41:00","month":2,"hours":2382.08},{"id":11203,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"CHR WW","jira":"-","requested":"2026-02-19T21:40:00","month":2,"hours":254.93},{"id":11204,"assignee":"Vaishaka Nalka","priority":"Low","type":"Bug","org":"GW","jira":"WINMORE-9438","requested":"2026-02-19T21:54:00","month":2,"hours":334.93},{"id":11205,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"","jira":"-","requested":"2026-02-19T21:56:00","month":2,"hours":7.78},{"id":11206,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"","jira":"-","requested":"2026-02-19T22:08:00","month":2,"hours":7.6},{"id":11209,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"P&O","jira":"-","requested":"2026-02-20T10:21:00","month":2,"hours":2474.43},{"id":11210,"assignee":"Amrutha Nanda","priority":"Normal","type":"Bug","org":"Yusen Logistics","jira":"WINMORE-9448","requested":"2026-02-20T11:28:00","month":2,"hours":343.87},{"id":11211,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Bug","org":"GW","jira":"WINMORE-9472","requested":"2026-02-20T15:08:00","month":2,"hours":242.68},{"id":11214,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"-","requested":"2026-02-23T16:10:00","month":2,"hours":156.33},{"id":11216,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"CHR WW","jira":"-","requested":"2026-02-24T14:28:00","month":2,"hours":0.4},{"id":11218,"assignee":"Vaishaka Nalka","priority":"High","type":"Bug","org":"Yusen Logistics","jira":"WINMORE-9480","requested":"2026-02-24T17:30:00","month":2,"hours":496.93},{"id":11221,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"NTG","jira":"WINMORE-9493","requested":"2026-02-25T02:17:00","month":2,"hours":66.63},{"id":11222,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"MVT","jira":"-","requested":"2026-02-26T01:58:00","month":2,"hours":106.63},{"id":11223,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-02-26T03:03:00","month":2,"hours":178.2},{"id":11224,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"-","requested":"2026-02-26T09:39:00","month":2,"hours":98.93},{"id":11225,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-02-26T10:18:00","month":2,"hours":101.27},{"id":11226,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"-","requested":"2026-02-26T21:48:00","month":2,"hours":102.68},{"id":11227,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Bug","org":"P&O","jira":"WINMORE-9568","requested":"2026-02-27T13:31:00","month":2,"hours":309.47},{"id":11228,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"NTG","jira":"WINMORE-9513","requested":"2026-02-27T17:39:00","month":2,"hours":69.93},{"id":11229,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-03-02T09:34:00","month":3,"hours":42.45},{"id":11233,"assignee":"Amrutha Nanda","priority":"High","type":"Bug","org":"GW","jira":"WINMORE-9519","requested":"2026-03-02T17:52:00","month":3,"hours":97.52},{"id":11234,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"CHR WW","jira":"-","requested":"2026-03-02T20:54:00","month":3,"hours":22.4},{"id":11235,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-03-03T16:58:00","month":3,"hours":74.43},{"id":11237,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Flexport","jira":"-","requested":"2026-03-03T19:07:00","month":3,"hours":164.25},{"id":11238,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Flexport","jira":"-","requested":"2026-03-03T20:27:00","month":3,"hours":140.88},{"id":11240,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"CHRW","jira":"-","requested":"2026-03-03T22:32:00","month":3,"hours":60.08},{"id":11241,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-03-04T04:46:00","month":3,"hours":7.0},{"id":11242,"assignee":"Vaishaka Nalka","priority":"High","type":"Bug","org":"Yusen Logistics","jira":"WINMORE-9543","requested":"2026-03-04T10:42:00","month":3,"hours":309.55},{"id":11243,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-03-04T11:20:00","month":3,"hours":145.43},{"id":11244,"assignee":"Dominyka Pladyte (app)","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"WINMORE-9547","requested":"2026-03-04T11:23:00","month":3,"hours":477.98},{"id":11245,"assignee":"Amrutha Nanda","priority":"Normal","type":"Task","org":"Averitt Express","jira":"-","requested":"2026-03-04T15:55:00","month":3,"hours":51.52},{"id":11246,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"CHR WW","jira":"WINMORE-9556","requested":"2026-03-04T18:34:00","month":3,"hours":168.1},{"id":11248,"assignee":"Amrutha Nanda","priority":"Urgent","type":"Question","org":"Flexport","jira":"WINMORE-9546","requested":"2026-03-04T19:50:00","month":3,"hours":24.13},{"id":11249,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"WINMORE-9752, WINMORE-9753","requested":"2026-03-04T22:45:00","month":3,"hours":855.05},{"id":11250,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-03-05T03:37:00","month":3,"hours":201.87},{"id":11251,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"DPW","jira":"-","requested":"2026-03-05T09:28:00","month":3,"hours":96.02},{"id":11252,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"WINMORE-9554","requested":"2026-03-05T11:27:00","month":3,"hours":23.57},{"id":11253,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-03-05T13:10:00","month":3,"hours":0.2},{"id":11254,"assignee":"Amrutha Nanda","priority":"Normal","type":"Task","org":"Averitt Express","jira":"WINMORE-9582","requested":"2026-03-05T15:16:00","month":3,"hours":290.27},{"id":11256,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"NTG","jira":"WINMORE-9493","requested":"2026-03-09T14:35:00","month":3,"hours":551.32},{"id":11257,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-03-10T18:06:00","month":3,"hours":41.95},{"id":11258,"assignee":"Amrutha Nanda","priority":"Normal","type":"Bug","org":"Averitt Express","jira":"-","requested":"2026-03-10T20:23:00","month":3,"hours":0.18},{"id":11259,"assignee":"","priority":"Normal","type":"Question","org":"P&O","jira":"-","requested":"2026-03-11T08:27:00","month":3,"hours":292.57},{"id":11260,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-03-11T12:22:00","month":3,"hours":16.23},{"id":11261,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-03-11T12:27:00","month":3,"hours":122.28},{"id":11262,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-03-11T14:04:00","month":3,"hours":120.63},{"id":11263,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-03-11T15:03:00","month":3,"hours":121.83},{"id":11264,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"","jira":"-","requested":"2026-03-11T15:45:00","month":3,"hours":118.87},{"id":11266,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"-","requested":"2026-03-11T16:50:00","month":3,"hours":0.05},{"id":11267,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"WINMORE-9591, WINMORE-9625","requested":"2026-03-11T16:51:00","month":3,"hours":143.42},{"id":11268,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"WINMORE-9584","requested":"2026-03-11T18:32:00","month":3,"hours":2.77},{"id":11269,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Flexport","jira":"WINMORE-9601","requested":"2026-03-12T20:13:00","month":3,"hours":969.78},{"id":11270,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Flexport","jira":"WINMORE-9617","requested":"2026-03-12T20:19:00","month":3,"hours":326.82},{"id":11273,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"NTG","jira":"WINMORE-9604","requested":"2026-03-13T19:22:00","month":3,"hours":309.45},{"id":11282,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"WINMORE-9613","requested":"2026-03-16T06:54:00","month":3,"hours":23.8},{"id":11283,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Bug","org":"JAS Worldwide","jira":"WINMORE-9612","requested":"2026-03-16T09:39:00","month":3,"hours":9.5},{"id":11284,"assignee":"","priority":"Low","type":"","org":"P&O","jira":"-","requested":"2026-03-16T10:54:00","month":3,"hours":167.3},{"id":11285,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"WINMORE-9650","requested":"2026-03-16T11:03:00","month":3,"hours":692.63},{"id":11286,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"GW","jira":"-","requested":"2026-03-18T14:05:00","month":3,"hours":50.0},{"id":11287,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"","jira":"WINMORE-9637","requested":"2026-03-18T15:54:00","month":3,"hours":168.68},{"id":11289,"assignee":"Amrutha Nanda","priority":"Low","type":"","org":"Flexport","jira":"-","requested":"2026-03-18T20:35:00","month":3,"hours":0.1},{"id":11291,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"Nippon express","jira":"WINMORE-9656","requested":"2026-03-23T15:08:00","month":3,"hours":231.57},{"id":11292,"assignee":"Vaishaka Nalka","priority":"Low","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-03-24T08:43:00","month":3,"hours":198.67},{"id":11293,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"DPW","jira":"-","requested":"2026-03-24T11:34:00","month":3,"hours":17.63},{"id":11294,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"DPW","jira":"-","requested":"2026-03-24T16:01:00","month":3,"hours":164.57},{"id":11301,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"P&O","jira":"WINMORE-9667","requested":"2026-03-25T14:17:00","month":3,"hours":307.5},{"id":11302,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"DPW","jira":"-","requested":"2026-03-25T14:17:00","month":3,"hours":337.47},{"id":11303,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"-","requested":"2026-03-25T18:09:00","month":3,"hours":132.55},{"id":11304,"assignee":"Vaishaka Nalka","priority":"High","type":"Bug","org":"JAS Worldwide","jira":"WINMORE-9664","requested":"2026-03-25T20:52:00","month":3,"hours":16.15},{"id":11305,"assignee":"Amrutha Nanda","priority":"Normal","type":"Task","org":"NTG","jira":"-","requested":"2026-03-26T15:04:00","month":3,"hours":138.45},{"id":11308,"assignee":"Amrutha Nanda","priority":"Normal","type":"Task","org":"NTG","jira":"-","requested":"2026-03-26T21:37:00","month":3,"hours":106.77},{"id":11310,"assignee":"Amrutha Nanda","priority":"Normal","type":"Bug","org":"Winmore","jira":"WINMORE-9692, WINMORE-9744","requested":"2026-03-30T10:38:00","month":3,"hours":1900.3},{"id":11312,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-03-31T18:02:00","month":3,"hours":185.57},{"id":11313,"assignee":"John Ward","priority":"Low","type":"Bug","org":"NTG","jira":"9692.0","requested":"2026-03-31T19:27:00","month":3,"hours":2.6},{"id":11314,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"-","requested":"2026-03-31T20:12:00","month":3,"hours":162.55},{"id":11315,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"Flexport","jira":"WINMORE-9700","requested":"2026-04-01T01:10:00","month":4,"hours":329.45},{"id":11316,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"WINMORE-9706","requested":"2026-04-01T10:00:00","month":4,"hours":169.57},{"id":11317,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"WINMORE-9714","requested":"2026-04-01T13:39:00","month":4,"hours":1369.37},{"id":11318,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-04-01T16:17:00","month":4,"hours":15.58},{"id":11319,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"Samskip","jira":"-","requested":"2026-04-02T10:27:00","month":4,"hours":285.48},{"id":11320,"assignee":"Muiz Pasha","priority":"Low","type":"Question","org":"Yusen Logistics","jira":"WINMORE-9719","requested":"2026-04-02T11:03:00","month":4,"hours":453.68},{"id":11324,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"NTG","jira":"WINMORE-9734","requested":"2026-04-06T14:27:00","month":4,"hours":257.48},{"id":11325,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"Averitt Express","jira":"WINMORE-9748","requested":"2026-04-06T15:43:00","month":4,"hours":544.13},{"id":11327,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"NTG","jira":"WINMORE-9729","requested":"2026-04-06T23:00:00","month":4,"hours":15.8},{"id":11329,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"WINMORE-9762","requested":"2026-04-06T23:26:00","month":4,"hours":327.53},{"id":11330,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"P&O","jira":"-","requested":"2026-04-07T11:10:00","month":4,"hours":3.73},{"id":11331,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"GW","jira":"WINMORE-9739","requested":"2026-04-07T12:07:00","month":4,"hours":22.93},{"id":11332,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Bug","org":"JAS Worldwide","jira":"WINMORE-9742","requested":"2026-04-07T15:25:00","month":4,"hours":398.6},{"id":11333,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"MVT","jira":"WINMORE-9748","requested":"2026-04-08T01:41:00","month":4,"hours":727.08},{"id":11334,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"-","requested":"2026-04-08T02:57:00","month":4,"hours":5.98},{"id":11335,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"DPW","jira":"WINMORE-9747","requested":"2026-04-08T14:59:00","month":4,"hours":44.07},{"id":11339,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"-","requested":"2026-04-09T17:29:00","month":4,"hours":84.58},{"id":11340,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"WINMORE-9761","requested":"2026-04-10T12:22:00","month":4,"hours":165.67},{"id":11341,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"NTG","jira":"WINMORE-9763","requested":"2026-04-10T14:58:00","month":4,"hours":265.95},{"id":11342,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"-","requested":"2026-04-10T20:58:00","month":4,"hours":105.05},{"id":11344,"assignee":"Amrutha Nanda","priority":"Low","type":"","org":"Yusen Logistics","jira":"-","requested":"2026-04-13T04:22:00","month":4,"hours":1.38},{"id":11346,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-04-13T04:29:00","month":4,"hours":6.83},{"id":11347,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"WINMORE-9761","requested":"2026-04-13T11:07:00","month":4,"hours":188.12},{"id":11348,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"NTG","jira":"-","requested":"2026-04-13T16:44:00","month":4,"hours":22.1},{"id":11350,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"DPW","jira":"-","requested":"2026-04-14T10:21:00","month":4,"hours":196.23},{"id":11351,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"DPW","jira":"-","requested":"2026-04-14T11:39:00","month":4,"hours":239.27},{"id":11352,"assignee":"Vaishaka Nalka","priority":"High","type":"Question","org":"DPW","jira":"WINMORE-9782","requested":"2026-04-14T13:45:00","month":4,"hours":569.48},{"id":11353,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"-","requested":"2026-04-14T16:30:00","month":4,"hours":65.42},{"id":11356,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"CHR WW","jira":"-","requested":"2026-04-14T23:50:00","month":4,"hours":19.9},{"id":11358,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"P&O","jira":"WINMORE-9791","requested":"2026-04-15T10:15:00","month":4,"hours":360.32},{"id":11362,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Task","org":"JAS Worldwide","jira":"WINMORE-9784","requested":"2026-04-15T21:46:00","month":4,"hours":11.7},{"id":11363,"assignee":"Vaishaka Nalka","priority":"High","type":"Bug","org":"Samskip","jira":"WINMORE-9786","requested":"2026-04-16T12:26:00","month":4,"hours":311.17},{"id":11365,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Samskip","jira":"WINMORE-9790","requested":"2026-04-17T11:57:00","month":4,"hours":429.45},{"id":11366,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"CHR WW","jira":"-","requested":"2026-04-17T13:34:00","month":4,"hours":1.37},{"id":11367,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Bug","org":"Samskip","jira":"WINMORE-9786","requested":"2026-04-17T15:03:00","month":4,"hours":64.15},{"id":11369,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"P&O","jira":"WINMORE-9794, WINMORE-9884","requested":"2026-04-20T08:13:00","month":4,"hours":null},{"id":11371,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"CHR WW","jira":"WINMORE-9802","requested":"2026-04-20T22:54:00","month":4,"hours":327.97},{"id":11373,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"CHR WW","jira":"-","requested":"2026-04-23T06:12:00","month":4,"hours":291.2},{"id":11375,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"DPW","jira":"WINMORE-9834","requested":"2026-04-27T13:16:00","month":4,"hours":70.2},{"id":11377,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"DPW","jira":"-","requested":"2026-04-27T17:46:00","month":4,"hours":12.8},{"id":11379,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"CHR WW","jira":"-","requested":"2026-04-29T00:24:00","month":4,"hours":149.7},{"id":11380,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"P&O","jira":"-","requested":"2026-04-29T13:21:00","month":4,"hours":44.0},{"id":11381,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"P&O","jira":"-","requested":"2026-04-29T15:18:00","month":4,"hours":113.05},{"id":11382,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"CHR WW","jira":"WMCM-791","requested":"2026-04-29T20:04:00","month":4,"hours":283.6},{"id":11383,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"DPW","jira":"-","requested":"2026-04-30T14:06:00","month":4,"hours":120.93},{"id":11385,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"DPW","jira":"-","requested":"2026-04-30T16:29:00","month":4,"hours":263.1},{"id":11387,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"-","requested":"2026-05-01T02:49:00","month":5,"hours":76.77},{"id":11388,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"-","requested":"2026-05-01T16:41:00","month":5,"hours":85.37},{"id":11389,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"DPW","jira":"WINMORE-9854","requested":"2026-05-04T09:59:00","month":5,"hours":46.72},{"id":11390,"assignee":"Vaishaka Nalka","priority":"High","type":"Bug","org":"Nippon express","jira":"WINMORE-9863","requested":"2026-05-05T11:39:00","month":5,"hours":411.13},{"id":11391,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"WINMORE-9868","requested":"2026-05-05T12:26:00","month":5,"hours":166.67},{"id":11393,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"Samskip","jira":"-","requested":"2026-05-05T17:06:00","month":5,"hours":36.83},{"id":11396,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"","jira":"-","requested":"2026-05-07T08:36:00","month":5,"hours":197.83},{"id":11397,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"WINMORE-9891","requested":"2026-05-07T15:22:00","month":5,"hours":453.07},{"id":11398,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"","jira":"-","requested":"2026-05-08T10:42:00","month":5,"hours":93.95},{"id":11399,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Samskip","jira":"-","requested":"2026-05-11T10:06:00","month":5,"hours":194.67},{"id":11401,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"DPW","jira":"-","requested":"2026-05-11T10:43:00","month":5,"hours":23.27},{"id":11402,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"DPW","jira":"IM-1177","requested":"2026-05-11T11:42:00","month":5,"hours":94.03},{"id":11403,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Samskip","jira":"-","requested":"2026-05-11T17:12:00","month":5,"hours":157.25},{"id":11405,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"DPW","jira":"IM-1289","requested":"2026-05-12T13:42:00","month":5,"hours":null},{"id":11407,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Averitt Express","jira":"-","requested":"2026-05-12T18:36:00","month":5,"hours":59.65},{"id":11408,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"DPW","jira":"-","requested":"2026-05-13T08:10:00","month":5,"hours":341.18},{"id":11409,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"DPW","jira":"-","requested":"2026-05-13T08:39:00","month":5,"hours":317.17},{"id":11410,"assignee":"Vaishaka Nalka","priority":"Urgent","type":"Question","org":"JAS Worldwide","jira":"WINMORE-9882","requested":"2026-05-13T10:05:00","month":5,"hours":5.28},{"id":11411,"assignee":"Vaishaka Nalka","priority":"High","type":"Question","org":"","jira":"WINMORE-9886","requested":"2026-05-13T15:20:00","month":5,"hours":310.57},{"id":11412,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Averitt Express","jira":"WINMORE-8189","requested":"2026-05-14T21:28:00","month":5,"hours":16.8},{"id":11413,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Bug","org":"CHR WW","jira":"WINMORE-9896","requested":"2026-05-14T23:32:00","month":5,"hours":469.52},{"id":11414,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Flexport","jira":"-","requested":"2026-05-15T04:56:00","month":5,"hours":172.37},{"id":11416,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"WINMORE-9919","requested":"2026-05-18T19:12:00","month":5,"hours":59.53},{"id":11418,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"DPW","jira":"-","requested":"2026-05-19T08:32:00","month":5,"hours":72.87},{"id":11420,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Bug","org":"JAS Worldwide","jira":"WINMORE-9794, WINMORE-9936","requested":"2026-05-19T23:59:00","month":5,"hours":null},{"id":11423,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"DPW","jira":"WINMORE-9981","requested":"2026-05-21T11:15:00","month":5,"hours":263.48},{"id":11424,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"-","requested":"2026-05-21T15:52:00","month":5,"hours":142.18},{"id":11425,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"-","requested":"2026-05-22T10:15:00","month":5,"hours":148.47},{"id":11426,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"P&O","jira":"WINMORE-9967","requested":"2026-05-22T13:19:00","month":5,"hours":451.07},{"id":11427,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"DPW","jira":"WINMORE-9955","requested":"2026-05-22T15:13:00","month":5,"hours":236.22},{"id":11429,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"DPW","jira":"-","requested":"2026-05-25T11:42:00","month":5,"hours":166.42},{"id":11430,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"P&O","jira":"-","requested":"2026-05-26T10:05:00","month":5,"hours":52.6},{"id":11431,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"DPW","jira":"-","requested":"2026-05-27T09:49:00","month":5,"hours":25.77},{"id":11432,"assignee":"Vaishaka Nalka","priority":"Urgent","type":"Bug","org":"DPW","jira":"WINMORE-9969","requested":"2026-05-27T11:43:00","month":5,"hours":383.77},{"id":11435,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"WINMORE-9980","requested":"2026-05-27T22:51:00","month":5,"hours":null},{"id":11436,"assignee":"Dominyka Pladyte (app)","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-05-28T03:49:00","month":5,"hours":null},{"id":11438,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"DPW","jira":"-","requested":"2026-05-28T08:11:00","month":5,"hours":148.8},{"id":11439,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"WINMORE-8823","requested":"2026-05-28T15:38:00","month":5,"hours":16.6},{"id":11440,"assignee":"Amrutha Nanda","priority":"Low","type":"Question","org":"JAS Worldwide","jira":"WINMORE-8823","requested":"2026-05-28T15:51:00","month":5,"hours":86.42},{"id":11441,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"-","requested":"2026-05-28T16:25:00","month":5,"hours":421.83},{"id":11442,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Averitt Express","jira":"WINMORE-10009","requested":"2026-05-28T19:43:00","month":5,"hours":null},{"id":11443,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"WINMORE-9975","requested":"2026-05-28T22:45:00","month":5,"hours":79.53},{"id":11445,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"Nippon express","jira":"WINMORE-9794, WINMORE-9976, WINMORE-9992","requested":"2026-05-29T11:38:00","month":5,"hours":null},{"id":11448,"assignee":"Dominyka Pladyte (app)","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-05-29T15:36:00","month":5,"hours":68.3},{"id":11457,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"-","requested":"2026-06-02T14:50:00","month":6,"hours":46.2},{"id":11458,"assignee":"Vaishaka Nalka","priority":"Low","type":"Question","org":"Nippon express","jira":"-","requested":"2026-06-03T10:09:00","month":6,"hours":119.15},{"id":11459,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Bug","org":"CHR WW","jira":"WINMORE-10008","requested":"2026-06-03T18:34:00","month":6,"hours":null},{"id":11460,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"JAS Worldwide","jira":"WINMORE-9999","requested":"2026-06-03T19:42:00","month":6,"hours":18.73},{"id":11461,"assignee":"Amrutha Nanda","priority":"Normal","type":"Task","org":"JAS Worldwide","jira":"WINMORE-9999","requested":"2026-06-03T20:40:00","month":6,"hours":273.62},{"id":11463,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"P&O","jira":"-","requested":"2026-06-04T09:06:00","month":6,"hours":28.33},{"id":11464,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"DPW","jira":"WINMORE-10016","requested":"2026-06-04T11:49:00","month":6,"hours":258.6},{"id":11465,"assignee":"Amrutha Nanda","priority":"Low","type":"","org":"DPW","jira":"-","requested":"2026-06-04T13:49:00","month":6,"hours":0.48},{"id":11468,"assignee":"Amrutha Nanda","priority":"Normal","type":"Enhancement","org":"Averitt Express","jira":"WINMORE-10020","requested":"2026-06-04T22:00:00","month":6,"hours":128.28},{"id":11469,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Bug","org":"JAS Worldwide","jira":"-","requested":"2026-06-04T22:17:00","month":6,"hours":16.38},{"id":11470,"assignee":"Vaishaka Nalka","priority":"Urgent","type":"Bug","org":"Yusen Logistics","jira":"WINMORE-10011","requested":"2026-06-05T14:32:00","month":6,"hours":166.17},{"id":11471,"assignee":"Manoj","priority":"Normal","type":"Question","org":"DPW","jira":"-","requested":"2026-06-05T14:49:00","month":6,"hours":280.17},{"id":11472,"assignee":"Vaishaka Nalka","priority":"Urgent","type":"Bug","org":"Yusen Logistics","jira":"WINMORE-10012","requested":"2026-06-05T16:03:00","month":6,"hours":87.1},{"id":11473,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Bug","org":"Yusen Logistics","jira":"-","requested":"2026-06-05T16:05:00","month":6,"hours":62.92},{"id":11475,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"P&O","jira":"WMCM-841","requested":"2026-06-08T11:46:00","month":6,"hours":null},{"id":11476,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Bug","org":"Nippon express","jira":"WINMORE-10040","requested":"2026-06-08T13:44:00","month":6,"hours":21.27},{"id":11480,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"NTG","jira":"-","requested":"2026-06-08T15:55:00","month":6,"hours":63.17},{"id":11481,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"DPW","jira":"-","requested":"2026-06-09T07:45:00","month":6,"hours":149.88},{"id":11482,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-06-09T14:25:00","month":6,"hours":185.75},{"id":11484,"assignee":"Amrutha Nanda","priority":"Normal","type":"Bug","org":"Yusen Logistics","jira":"-","requested":"2026-06-11T11:40:00","month":6,"hours":162.83},{"id":11485,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"DPW","jira":"IM-1290","requested":"2026-06-11T14:33:00","month":6,"hours":null},{"id":11487,"assignee":"","priority":"Low","type":"","org":"","jira":"-","requested":"2026-06-08T18:37:00","month":6,"hours":72.65},{"id":11488,"assignee":"Amrutha Nanda","priority":"Normal","type":"Bug","org":"Yusen Logistics","jira":"-","requested":"2026-06-12T09:22:00","month":6,"hours":141.17},{"id":11492,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"Samskip","jira":"-","requested":"2026-06-12T09:56:00","month":6,"hours":4.5},{"id":11495,"assignee":"Amrutha Nanda","priority":"Normal","type":"","org":"Yusen Logistics","jira":"WINMORE-10054","requested":"2026-06-12T15:00:00","month":6,"hours":null},{"id":11497,"assignee":"Amrutha Nanda","priority":"Normal","type":"Question","org":"DPW","jira":"-","requested":"2026-06-15T10:20:00","month":6,"hours":43.82},{"id":11499,"assignee":"Amrutha Nanda","priority":"Normal","type":"Task","org":"P&O","jira":"-","requested":"2026-06-16T12:45:00","month":6,"hours":69.37},{"id":11500,"assignee":"Vaishaka Nalka","priority":"Low","type":"Question","org":"","jira":"-","requested":"2026-06-16T15:54:00","month":6,"hours":14.08},{"id":11501,"assignee":"Vaishaka Nalka","priority":"Low","type":"Question","org":"","jira":"-","requested":"2026-06-16T16:10:00","month":6,"hours":13.8},{"id":11502,"assignee":"Amrutha Nanda","priority":"Normal","type":"Task","org":"DPW","jira":"-","requested":"2026-06-17T16:40:00","month":6,"hours":15.82},{"id":11506,"assignee":"Vaishaka Nalka","priority":"Normal","type":"Question","org":"Yusen Logistics","jira":"-","requested":"2026-06-18T10:10:00","month":6,"hours":29.07},{"id":11508,"assignee":"","priority":"Low","type":"","org":"DPW","jira":"-","requested":"2026-06-19T16:12:00","month":6,"hours":null}];
+
+// ── BUGS & TASKS DATA ────────────────────────────────────────────────────────
+const BUGS_RAW = [
+  {key:"WINMORE-799",summary:"Price Edit Modal | The user is redirected to the first page in price edit modal after the edits are made in a different page #13053",assignee:"Raina Nellerichalil",status:"Ready for Testing",customer:"JAS",reporter:"SIDHARTH NARAYAN"},
+  {key:"WINMORE-2088",summary:"Flexport: MainFreight Rating is not Pickup up rates due to Timezones",assignee:"Radhika Pulikkal",status:"Reported",customer:"Flexport",reporter:"john.nadvornik"},
+  {key:"WINMORE-1489",summary:"P3, MVT: user reported that edits to description field do not autosave in some scenarios #10828",assignee:"Able Roy",status:"Ready for Testing",customer:"MVT",reporter:"Able Roy"},
+  {key:"WINMORE-2163",summary:"Wrong column auto mapped to destination port IPT field",assignee:"Sourabh Subhod",status:"Ready for Testing",customer:"Flexport",reporter:"Raina Nellerichalil"},
+  {key:"WINMORE-2352",summary:"NA Prod | Shipper Import progress notification is stuck at 9/9 status",assignee:"Raina Nellerichalil",status:"Ready for Testing",customer:"Flexport",reporter:"Raina Nellerichalil"},
+  {key:"WINMORE-2501",summary:"NA Prod | Unable to load specific records in master data",assignee:"Jasif Shameem K",status:"Ready for Testing",customer:"Flexport",reporter:"Raina Nellerichalil"},
+  {key:"WINMORE-2709",summary:"Nippon, P3, NA Prod: Can't import some of the suggested Date formats to Exchange Rates table",assignee:"arjun.venugopal",status:"Under Review",customer:"Nippon",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-2893",summary:"JAS.P2.Performance issues when adding user to User Group",assignee:"Showvhick Nath",status:"Reported",customer:"JAS",reporter:"Ruth Tejano"},
+  {key:"WINMORE-3610",summary:"DP World: P1 No Ad-hoc Columns Visible in PI",assignee:"Anoop Sukumaran",status:"Dev In Progress",customer:"DP World",reporter:"Harald Wacker"},
+  {key:"WINMORE-3726",summary:"Internal Spreadsheet Template Uploaded with Macro - PI table Exported Excel is downloaded in .xlsx format",assignee:"Jasif Shameem K",status:"Ready for Deployment",customer:"JAS",reporter:"Gururaj N"},
+  {key:"WINMORE-3951",summary:"GW: Excel export from User assignment matrix differs from PI export",assignee:"Showvhick Nath",status:"Reported",customer:"DP World;Gebruder Weiss",reporter:"Harald Wacker"},
+  {key:"WINMORE-4295",summary:"DDM Spike in reader instance sep 2nd 22:49 utc",assignee:"Showvhick Nath",status:"Reported",customer:"JAS",reporter:"Manoj K"},
+  {key:"WINMORE-4305",summary:"DDM - 5xx - Corrupted layout configuration flexport",assignee:"Showvhick Nath",status:"Reported",customer:"Flexport",reporter:"Manoj K"},
+  {key:"WINMORE-4640",summary:"DDM - 5 xx errors related to flexport ocean_fcl_v3_user_assignments missing",assignee:"arjun.venugopal",status:"Reported",customer:"Flexport",reporter:"Manoj K"},
+  {key:"WINMORE-4660",summary:"JAS: Trying to Load MainFreight Data and Failing with Discard Message (Sandbox Environment)",assignee:"Showvhick Nath",status:"Under Review",customer:"JAS",reporter:"john.nadvornik"},
+  {key:"WINMORE-4730",summary:"GW: ML does not recognize Origin Location Plovdiv (Bulgaria)",assignee:"Saudath Noora",status:"Reported",customer:"Gebruder Weiss",reporter:"Harald Wacker"},
+  {key:"WINMORE-4754",summary:"Nippon: dropdown download issue with symbols as options",assignee:"",status:"Reported",customer:"Nippon",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-4799",summary:"Charge code record type related pricing status API call error | JAS Worldwide",assignee:"Showvhick Nath",status:"Reported",customer:"JAS",reporter:"Anoop Sukumaran"},
+  {key:"WINMORE-4884",summary:"chrw error related to odata in pyspark",assignee:"Renjith Ramaswamy",status:"Reported",customer:"CHRW",reporter:"Manoj K"},
+  {key:"WINMORE-5007",summary:"Flexport query causing load on writer instance production db",assignee:"Jyothis Shaji",status:"Reported",customer:"Flexport",reporter:"Manoj K"},
+  {key:"WINMORE-5016",summary:"PreProd.JAS.P3 Lead Workflow is showing a different workflow when clicked.",assignee:"Showvhick Nath",status:"Reported",customer:"JAS",reporter:"Ruth Tejano"},
+  {key:"WINMORE-5159",summary:"Business Rule Output Shows Currency ID",assignee:"",status:"Reported",customer:"CHRW",reporter:"Jean Pierre Coymat"},
+  {key:"WINMORE-5514",summary:"JAS PreProd - CRM Demo No Access Error",assignee:"Showvhick Nath",status:"Dev Complete",customer:"JAS",reporter:"Tiffany Zwolakowski"},
+  {key:"WINMORE-5576",summary:"SSO Setup for OIA",assignee:"Sreeraj M",status:"Ready for Deployment",customer:"OIA",reporter:"Karthik Chandran"},
+  {key:"WINMORE-5670",summary:"Internal Import Getting Failed : \"Warning: Import failed due to system error\"",assignee:"Showvhick Nath",status:"Dev Complete",customer:"JAS",reporter:"Tejaskumar.JC"},
+  {key:"WINMORE-5710",summary:"Preview Internal Spreadsheet is Not Generating",assignee:"Showvhick Nath",status:"Reported",customer:"Yusen",reporter:"Tejaskumar.JC"},
+  {key:"WINMORE-5777",summary:"Flexport enrichments slowness issue",assignee:"Manoj K",status:"Reported",customer:"Flexport",reporter:"Manoj K"},
+  {key:"WINMORE-5823",summary:"Recompute button shows red after batch update completion",assignee:"Renjith Ramaswamy",status:"Reported",customer:"Flexport",reporter:"Manoj K"},
+  {key:"WINMORE-5876",summary:"PI Table Export Contains More Columns Than Expected",assignee:"Showvhick Nath",status:"Reported",customer:"Yusen",reporter:"Tejaskumar.JC"},
+  {key:"WINMORE-5881",summary:"Flexport performanc eissues Old audit history tables called in batch updates",assignee:"Showvhick Nath",status:"Reported",customer:"Flexport",reporter:"Manoj K"},
+  {key:"WINMORE-5934",summary:"In PI export file, the value of a formula field is showing upto 14 decimal digits where as in Pi table it is just showing upto 2 decimal digits.",assignee:"Arpit Shrivastava",status:"Under Review",customer:"NTG",reporter:"neha.sahu"},
+  {key:"WINMORE-5983",summary:"Yusen || Adhoc Column are missing in IPT.",assignee:"Showvhick Nath",status:"RCA Pending",customer:"Yusen",reporter:"amrutha.nanda"},
+  {key:"WINMORE-6005",summary:"Continuous 500 errors in the Datadog logs\u2014resync/embedded-layout API is failing.",assignee:"neha.sahu",status:"Ready for Testing",customer:"Yusen",reporter:"arjun.venugopal"},
+  {key:"WINMORE-6096",summary:"Bullet points are displaying correctly in slack UI",assignee:"Rahul Bharadwaj",status:"Reported",customer:"Flexport",reporter:"Showvhick Nath"},
+  {key:"WINMORE-6100",summary:"Formula calculation failed due to NULL value in the recompute column",assignee:"Renjith Ramaswamy",status:"Reported",customer:"JAS",reporter:"Aarif K Pasha"},
+  {key:"WINMORE-6268",summary:"Error when user tries to save a studio formula",assignee:"Renjith Ramaswamy",status:"Under Review",customer:"NTG",reporter:"Akshay Kuniyil"},
+  {key:"WINMORE-6310",summary:"Unable to import the Shipper file \u2013 Mapping stuck at \"Processing\" status.",assignee:"Showvhick Nath",status:"Dev In Progress",customer:"Yusen",reporter:"Tejaskumar.JC"},
+  {key:"WINMORE-6333",summary:"Exchange rates job has not triggered the PySpark Flow",assignee:"Renjith Ramaswamy",status:"Reported",customer:"DP World",reporter:"Renjith Ramaswamy"},
+  {key:"WINMORE-6479",summary:"Parent record level calculations mistakenly getting passed to PySpark",assignee:"Renjith Ramaswamy",status:"Reported",customer:"DP World",reporter:"Aarif K Pasha"},
+  {key:"WINMORE-6551",summary:"Unable to Load Users for JAS in PREPROD",assignee:"",status:"Reported",customer:"JAS",reporter:"Jean Pierre Coymat"},
+  {key:"WINMORE-6558",summary:"JAS || Edit Automation is running very slow. Page hangs sometimes.",assignee:"amrutha.nanda",status:"Awaiting Customer Response",customer:"JAS",reporter:"amrutha.nanda"},
+  {key:"WINMORE-6583",summary:"Error observed while extracting data for formula calculation in JAS Worldwide org",assignee:"Aarif K Pasha",status:"Dev In Progress",customer:"JAS",reporter:"Aarif K Pasha"},
+  {key:"WINMORE-7094",summary:"Timestamp Free Dates Are Displaying and Adjusting Timestamps",assignee:"Showvhick Nath",status:"Dev In Progress",customer:"JAS",reporter:"Jean Pierre Coymat"},
+  {key:"WINMORE-7260",summary:"NTG Cust P1 bid intake process not working",assignee:"Showvhick Nath",status:"Under Review",customer:"NTG",reporter:"John Ward"},
+  {key:"WINMORE-7345",summary:"The route for DEHAM \u2192 USNYC is marked as Direct in the PI table, but the API response includes a transshipment, which may not align with the Direct Service logic.",assignee:"Tejaskumar.JC",status:"Testing Complete",customer:"DP World",reporter:"Tejaskumar.JC"},
+  {key:"WINMORE-7414",summary:"Skip automations",assignee:"Muiz Pasha",status:"Reported",customer:"JAS",reporter:"John Ward"},
+  {key:"WINMORE-7484",summary:"Wrong error message shown when IQAX returns some data",assignee:"Tejaskumar.JC",status:"Testing Complete",customer:"DP World",reporter:"Tejaskumar.JC"},
+  {key:"WINMORE-7614",summary:"CHRW: In FCL Template Container Size is no longer picking the correct drop-down value.",assignee:"Showvhick Nath",status:"Under Review",customer:"CHRW",reporter:"john.nadvornik"},
+  {key:"WINMORE-7681",summary:"Yusen OFF: Ad-hoc column sequence mixed up",assignee:"Jasif Shameem K",status:"Reported",customer:"Yusen",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-7823",summary:"JAS: Data Import Failing but showing Complete (Net Rates P&D Air)",assignee:"Renjith Ramaswamy",status:"Under Review",customer:"JAS",reporter:"john.nadvornik"},
+  {key:"WINMORE-7832",summary:"Assign users throws an error in the frontend and can't use segment collab",assignee:"Renjith Ramaswamy",status:"Under Review",customer:"Gebruder Weiss",reporter:"David Amezquita"},
+  {key:"WINMORE-7855",summary:"Date Field Export Includes Time Component Unexpectedly",assignee:"Sahana K P",status:"On Hold",customer:"JAS",reporter:"Sahana K P"},
+  {key:"WINMORE-7972",summary:"JAS.P2.(Mobile)Unable to view records after specific point in the Alphabet.",assignee:"Jasif Shameem K",status:"Dev Complete",customer:"JAS",reporter:"vaishaka.nalka"},
+  {key:"WINMORE-8085",summary:"CBW Not Opening \u2013 Data Load Failure",assignee:"Tejaskumar.JC",status:"Testing Complete",customer:"CHRW",reporter:"Tejaskumar.JC"},
+  {key:"WINMORE-8204",summary:"OIA - value input not working",assignee:"John Ward",status:"Ready for Testing",customer:"OIA",reporter:"John Ward"},
+  {key:"WINMORE-8232",summary:"CHRW| Unable to create Bid Level Exchange Rates getting unexpected error",assignee:"Renjith Ramaswamy",status:"Reported",customer:"CHRW",reporter:"Sahana K P"},
+  {key:"WINMORE-8337",summary:"Yusen AFF: Mapped Shipper Columns blank in PI",assignee:"Aarif K Pasha",status:"Dev In Progress",customer:"Yusen",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-8383",summary:"Agent console - Date formatting issue",assignee:"John Ward",status:"Reported",customer:"OIA",reporter:"John Ward"},
+  {key:"WINMORE-8459",summary:"Yusen OFF: wrong ML country prediction",assignee:"",status:"Reported",customer:"Yusen",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-8552",summary:"Inline Edit Not Working for Teams Picker Field in PI Table (CHRW Org - QA Staging Workflow)",assignee:"Arpit Shrivastava",status:"Dev Complete",customer:"CHRW",reporter:"Sahana K P"},
+  {key:"WINMORE-8598",summary:"Dupre Automation Time based notification",assignee:"John Ward",status:"Reported",customer:"Dupre",reporter:"John Ward"},
+  {key:"WINMORE-8672",summary:"Agent console bugs",assignee:"John Ward",status:"Reported",customer:"OIA",reporter:"John Ward"},
+  {key:"WINMORE-8880",summary:"Flexport: Production to Preprod Sandbox",assignee:"Manoj K",status:"Reported",customer:"Flexport",reporter:"john.nadvornik"},
+  {key:"WINMORE-8901",summary:"Redo Mapping fails to open Mapping Error view for fully rejected import",assignee:"Harald Wacker",status:"Reported",customer:"MSC",reporter:"Tejaskumar.JC"},
+  {key:"WINMORE-9021",summary:"Inline Edit Not Working for Agent Picker Field in PI Table (CHRW Org - QA Staging Workflow)",assignee:"Arpit Shrivastava",status:"Reported",customer:"CHRW",reporter:"Sahana K P"},
+  {key:"WINMORE-9050",summary:"archived templates are shown in the record layout",assignee:"",status:"Reported",customer:"MSC",reporter:"David Amezquita"},
+  {key:"WINMORE-9051",summary:"Default Owner for New Rows does not work",assignee:"Jasif Shameem K",status:"Under Review",customer:"MSC",reporter:"David Amezquita"},
+  {key:"WINMORE-9101",summary:"Agent Collab: Notify User on upload completion",assignee:"Jean Pierre Coymat",status:"Reported",customer:"OIA",reporter:"John Ward"},
+  {key:"WINMORE-9118",summary:"No email notification sent to user after lane assignment in Price Inspector",assignee:"Ushree Mazumdar",status:"Reported",customer:"MSC",reporter:"Tejaskumar.JC"},
+  {key:"WINMORE-9167",summary:"Data Quality Issue: Junk Characters in Shipper file data",assignee:"David Amezquita",status:"Reported",customer:"MSC",reporter:"Jasif Shameem K"},
+  {key:"WINMORE-9182",summary:"In PI Table, Pricing Status Incorrectly Updates to \u201c To Price\u201d When Bid Status Is Changed for Next Round",assignee:"Ushree Mazumdar",status:"Reported",customer:"P&O",reporter:"Sahana K P"},
+  {key:"WINMORE-9222",summary:"P2.Dupre - Data Import for 2 fields not working",assignee:"Showvhick Nath",status:"Reported",customer:"Dupre",reporter:"Ruth Tejano"},
+  {key:"WINMORE-9298",summary:"[New Demo Env, Preprod] Shipper Imports are Failing",assignee:"Renjith Ramaswamy",status:"Dev Complete",customer:"JAS",reporter:"Pavankumar Athani"},
+  {key:"WINMORE-9320",summary:"Yusen: cannot proceed in Review Changes with new ad-hoc column",assignee:"Pavankumar Athani",status:"Reported",customer:"Yusen",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-9398",summary:"CHRW: not mapping Export handling Min",assignee:"Aarif K Pasha",status:"Reported",customer:"CHRW",reporter:"Ujwal Kumar"},
+  {key:"WINMORE-9433",summary:"MSC UAT: Missing Normalization of Country 2 Letters to Country Name",assignee:"Harald Wacker",status:"On Hold",customer:"MSC",reporter:"Bruno Xavier"},
+  {key:"WINMORE-9510",summary:"EU PROD: System recompute formulas for archived fields",assignee:"Pavankumar Athani",status:"Reported",customer:"Gebruder Weiss",reporter:"David Amezquita"},
+  {key:"WINMORE-9542",summary:"MSC UAT: Routing Modal not displaying properly the Pricing Inspector fields on the Lane Header Information",assignee:"Harald Wacker",status:"Reported",customer:"MSC",reporter:"Bruno Xavier"},
+  {key:"WINMORE-9563",summary:"MSC UAT - incorrect status updates after attempting to retrieve routes",assignee:"Harald Wacker",status:"Reported",customer:"MSC",reporter:"David Amezquita"},
+  {key:"WINMORE-9589",summary:"MSC UAT: Wrong normalization is replacing Country information with wrong country",assignee:"Hari Charan Edara",status:"Reported",customer:"MSC",reporter:"Bruno Xavier"},
+  {key:"WINMORE-9594",summary:"MSC UAT: Issue with selecting tool on price inspector",assignee:"Tejaskumar.JC",status:"Ready for Testing",customer:"MSC",reporter:"Arpit Shrivastava"},
+  {key:"WINMORE-9600",summary:"Titanium Transportation",assignee:"John Ward",status:"Reported",customer:"Titanium",reporter:"John Ward"},
+  {key:"WINMORE-9634",summary:"OIA preprod - bug during mapping",assignee:"Pavankumar Athani",status:"Reported",customer:"OIA",reporter:"John Ward"},
+  {key:"WINMORE-9657",summary:"Yusen AFF: tasks from deleted tenders still show up in My Work/ Calendar",assignee:"souraj.pal",status:"Reported",customer:"Yusen",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-9662",summary:"JAS: Regular Record Type are not able to be cloned.",assignee:"",status:"Reported",customer:"JAS",reporter:"john.nadvornik"},
+  {key:"WINMORE-9663",summary:"JAS: Mapping is not selecting the correct row for Puma file",assignee:"",status:"Reported",customer:"JAS",reporter:"john.nadvornik"},
+  {key:"WINMORE-9701",summary:"Flexport: Users are unable to access their Quicksight dashboard.",assignee:"john.nadvornik",status:"Support Action Pending",customer:"Flexport",reporter:"john.nadvornik"},
+  {key:"WINMORE-9722",summary:"NTG user session for update user call causes high loop in gateway and api service",assignee:"Krishna",status:"Reported",customer:"NTG",reporter:"Manoj K"},
+  {key:"WINMORE-9774",summary:"Wrong error message after submission",assignee:"Arpit Shrivastava",status:"Reported",customer:"Gebruder Weiss",reporter:"David Amezquita"},
+  {key:"WINMORE-9809",summary:"OIA: FreightOS Integration Update - Assigning POL and POD for US referenced ramps",assignee:"john.nadvornik",status:"Awaiting Customer Response",customer:"OIA",reporter:"john.nadvornik"},
+  {key:"WINMORE-9832",summary:"Cargo-partner: Missing address predictions",assignee:"Varadalakshmi Nambiar",status:"Under Review",customer:"Cargo Partner",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-9884",summary:"Issues with create opportunities",assignee:"David Amezquita",status:"Awaiting Customer Response",customer:"P&O",reporter:"David Amezquita"},
+  {key:"WINMORE-9932",summary:"Nippon: 2x mapping to same IPT field",assignee:"",status:"Reported",customer:"Nippon",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-9936",summary:"JAS.P2.\"ROUND\" Function Not Converting Currency Values to USD",assignee:"Ujwal Kumar",status:"Ready for Testing",customer:"JAS",reporter:"vaishaka.nalka"},
+  {key:"WINMORE-9937",summary:"Yusen: Re-mapping error 'Shipper column index cannot be left blank'",assignee:"Pavankumar Athani",status:"Reported",customer:"Yusen",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-9960",summary:"MSC PROD: Lowest CO2 not being considered to automatically pick a route",assignee:"Divyansh Sharma",status:"Under Review",customer:"MSC",reporter:"Divyansh Sharma"},
+  {key:"WINMORE-9961",summary:"Yusen: Internal Preview error",assignee:"",status:"Reported",customer:"Yusen",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-9962",summary:"Yusen: user can't access Help & Feedback",assignee:"Manoj K",status:"Pending Reporter Input/Action",customer:"Yusen",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-9964",summary:"OIA Shipper blackout",assignee:"Jasif Shameem K",status:"Pending Reporter Input/Action",customer:"OIA",reporter:"John Ward"},
+  {key:"WINMORE-9978",summary:"Yusen: batch update stuck",assignee:"Renjith Ramaswamy",status:"Under Review",customer:"Yusen",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-9980",summary:"JAS.P1.Unable to Send Rates from Winmore Sandbox \u2013 Cargowise to TS1 (C1 Sandbox)",assignee:"souraj.pal",status:"Under Review",customer:"JAS",reporter:"vaishaka.nalka"},
+  {key:"WINMORE-9982",summary:"AIT - FCL Ocean mapping- Not recognizing previously mapped field headings",assignee:"Harald Wacker",status:"Reported",customer:"AIT",reporter:"Malcolm Sutcliffe"},
+  {key:"WINMORE-9987",summary:"On uploading  a Shipper file, Rate AI is creating duplicate mapping entries for headings which aren't needed.",assignee:"Harald Wacker",status:"Reported",customer:"AIT",reporter:"Malcolm Sutcliffe"},
+  {key:"WINMORE-9988",summary:"The entire mapping process fails as the app says currency fields not found for several mapped currency fields.",assignee:"Harald Wacker",status:"Reported",customer:"AIT",reporter:"Malcolm Sutcliffe"},
+  {key:"WINMORE-9989",summary:"On testing the pricing enrichment, the first lane of the partially costed  Price Inspector displays  either only #Value, or subsequently 0.00USD",assignee:"Malcolm Sutcliffe",status:"Support Action Pending",customer:"AIT",reporter:"Malcolm Sutcliffe"},
+  {key:"WINMORE-9992",summary:"Nippon || Incorrect Dropdown option and Blackout issue",assignee:"Jasif Shameem K",status:"Reported",customer:"Nippon",reporter:"amrutha.nanda"},
+  {key:"WINMORE-10001",summary:"Can't add currency pickers to Insights on EU PROD",assignee:"Arpit Shrivastava",status:"Reported",customer:"Gebruder Weiss",reporter:"David Amezquita"},
+  {key:"WINMORE-10002",summary:"MSC UAT/PROD: Normalization issues Jun 2026",assignee:"Harald Wacker",status:"In Testing",customer:"MSC",reporter:"Bruno Xavier"},
+  {key:"WINMORE-10006",summary:"MSC UAT/PROD: Destination City - error message is misleading",assignee:"Divyansh Sharma",status:"Under Review",customer:"MSC",reporter:"Divyansh Sharma"},
+  {key:"WINMORE-10008",summary:"CHRW.P2.Address Mapping Truncation for Origin and Destination Address Fields",assignee:"Ujwal Kumar",status:"Dev Complete",customer:"CHRW",reporter:"vaishaka.nalka"},
+  {key:"WINMORE-10009",summary:"Averitt Express || Mobile App issue",assignee:"souraj.pal",status:"Under Review",customer:"Averitt",reporter:"amrutha.nanda"},
+  {key:"WINMORE-10019",summary:"MSC UAT - Issues with double mapping",assignee:"Harald Wacker",status:"Testing Complete",customer:"MSC",reporter:"David Amezquita"},
+  {key:"WINMORE-10031",summary:"MSC - HITL Issue (double mapping)",assignee:"David Amezquita",status:"Testing Complete",customer:"MSC",reporter:"David Amezquita"},
+  {key:"WINMORE-10032",summary:"MSC - issues with routing when more than route cannot be distinguished",assignee:"Harald Wacker",status:"Testing Complete",customer:"MSC",reporter:"David Amezquita"},
+  {key:"WINMORE-10033",summary:"OIA: Freightos Updated Ramp to Port Logic",assignee:"john.nadvornik",status:"Ready for Testing",customer:"OIA",reporter:"john.nadvornik"},
+  {key:"WINMORE-10039",summary:"JAS || ROAD || Origin ZIP Code Mapping Incorrect",assignee:"Gana Devraj",status:"Pending Reporter Input/Action",customer:"JAS",reporter:"Gana Devraj"},
+  {key:"WINMORE-10041",summary:"Unable to map Jaegger Shipper file headings in Rate AI",assignee:"",status:"Reported",customer:"OIA",reporter:"Malcolm Sutcliffe"},
+  {key:"WINMORE-10042",summary:"JAS: Postal Validator are getting a token error.",assignee:"john.nadvornik",status:"Ready for Testing",customer:"JAS",reporter:"john.nadvornik"},
+  {key:"WINMORE-10044",summary:"OIA mapping - ML",assignee:"John Ward",status:"Pending Reporter Input/Action",customer:"OIA",reporter:"John Ward"},
+  {key:"WINMORE-10054",summary:"Yusen || Shipper preview file issue.",assignee:"amrutha.nanda",status:"Awaiting Customer Response",customer:"Yusen",reporter:"amrutha.nanda"},
+  {key:"WINMORE-10061",summary:"OIA - Post Implementation - AGCO Test bid",assignee:"",status:"Reported",customer:"OIA",reporter:"Malcolm Sutcliffe"},
+  {key:"WINMORE-10064",summary:"MSC UAT/PROD: Routing bug: fallback logic CY > Port is not working",assignee:"Divyansh Sharma",status:"Reported",customer:"MSC",reporter:"Bruno Xavier"},
+  {key:"WINMORE-10065",summary:"MSC UAT/PROD: Routing issue (SQL Statements error) when calling some routes on CY move type lanes",assignee:"Divyansh Sharma",status:"Ready for Testing",customer:"MSC",reporter:"Bruno Xavier"},
+  {key:"WINMORE-10069",summary:"MSC PROD: Price Inspector is not showing the imported lanes",assignee:"Bruno Xavier",status:"Pending Reporter Input/Action",customer:"MSC",reporter:"Bruno Xavier"},
+  {key:"WINMORE-10071",summary:"JAS: Receive Failed Message on Mapping - Origin State, Origin Zip Code, Destination State, Destination Zip Code not found",assignee:"Varadalakshmi Nambiar",status:"Under Review",customer:"JAS",reporter:"john.nadvornik"},
+  {key:"WINMORE-10072",summary:"AIT: Generating Multiple Write Back/Submission Files",assignee:"john.nadvornik",status:"Pending Reporter Input/Action",customer:"AIT",reporter:"john.nadvornik"},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""}
+];
+
+const TASKS_RAW = [
+  {key:"WINMORE-2080",summary:"Copy Dashboard from NA-PreProd to NA-PROD for Flexport",assignee:"",status:"Open",customer:"Flexport",reporter:"Jean Pierre Coymat"},
+  {key:"WINMORE-1943",summary:"Transformation Hit/Miss report analysis",assignee:"Raina Nellerichalil",status:"On Hold",customer:"Flexport",reporter:"Raina Nellerichalil"},
+  {key:"WINMORE-1999",summary:"Kirsch datawarehouse failing due to statement timeout ( workflow_metrics.v1 takes more than 10 min to load the data)",assignee:"arjun.venugopal",status:"In Progress.",customer:"Kirsch",reporter:"arjun.venugopal"},
+  {key:"WINMORE-2242",summary:"Business priority and Master data update",assignee:"Harald Wacker",status:"Open",customer:"Flexport",reporter:"Raina Nellerichalil"},
+  {key:"WINMORE-2269",summary:"Update to Flexport Internal FCL Template",assignee:"",status:"Open",customer:"Flexport",reporter:"Jean Pierre Coymat"},
+  {key:"WINMORE-2270",summary:"Update to Flexport Internal LCL Template",assignee:"",status:"Open",customer:"Flexport",reporter:"Jean Pierre Coymat"},
+  {key:"WINMORE-2821",summary:"DDM - EU Prod RDS Restart on May 09, 2024",assignee:"Jeet Parekh",status:"Open",customer:"Kuehne + Nagel Contract Logistics (KN)",reporter:"Karthik Chandran"},
+  {key:"WINMORE-2848",summary:"Na-prod | DP World SSO Integration",assignee:"Sreeraj M",status:"In Progress.",customer:"DP World",reporter:"Sreeraj M"},
+  {key:"WINMORE-3351",summary:"JAS.P3.Contact fields are not auto-populated when a new Office record is created",assignee:"Ruth Tejano",status:"Dev Complete",customer:"JAS",reporter:"Ruth Tejano"},
+  {key:"WINMORE-3364",summary:"JAS.P4.Update Tender Name when Tender Received Date has Changed",assignee:"Jean Pierre Coymat",status:"Open",customer:"JAS",reporter:"Ruth Tejano"},
+  {key:"WINMORE-3464",summary:"MVT - Reporting needs",assignee:"John Ward",status:"On Hold",customer:"MVT",reporter:"John Ward"},
+  {key:"WINMORE-3620",summary:"MVT business rule creation",assignee:"Santhosh Kumar",status:"On Hold",customer:"MVT",reporter:"John Ward"},
+  {key:"WINMORE-3631",summary:"Nippon : Global Volume Overview Dashboard Enhancement",assignee:"hritik.vishnoi",status:"Open",customer:"Nippon",reporter:"Ushree Mazumdar"},
+  {key:"WINMORE-3676",summary:"DP World. P3. Create Airlines picker field",assignee:"David Amezquita",status:"On Hold",customer:"DP World",reporter:"Gregory Kovalsky"},
+  {key:"WINMORE-3778",summary:"NTG- Cust p2 - business rule change",assignee:"John Ward",status:"On Hold",customer:"NTG",reporter:"John Ward"},
+  {key:"WINMORE-3955",summary:"JAS.P4.Data Upload Slow",assignee:"Anas Peer",status:"Open",customer:"JAS",reporter:"Ruth Tejano"},
+  {key:"WINMORE-4046",summary:"Create a QA process for Allocations AI pipeline in various envs",assignee:"Gururaj N",status:"Open",customer:"Rhenus",reporter:"sujit kumar behera"},
+  {key:"WINMORE-4226",summary:"Yusen.P3.Fix and optimize ML",assignee:"Jean Pierre Coymat",status:"Dev Complete",customer:"Yusen",reporter:"Ruth Tejano"},
+  {key:"WINMORE-4252",summary:"JAS.P2.Customer receiving email - Test record",assignee:"Showvhick Nath",status:"Open",customer:"JAS",reporter:"vaishaka.nalka"},
+  {key:"WINMORE-4369",summary:"WWEX report updated",assignee:"John Ward",status:"In Progress.",customer:"WWEX",reporter:"John Ward"},
+  {key:"WINMORE-4514",summary:"Charge code config - Create insights for JAS on Prod",assignee:"Manjunatha",status:"Ready for Testing",customer:"JAS",reporter:"Manjunatha"},
+  {key:"WINMORE-4636",summary:"Flexport internal template: Analysis on the existing customer feedbacks and fix the missed mappings",assignee:"Saudath Noora",status:"On Hold",customer:"Flexport",reporter:"Saudath Noora"},
+  {key:"WINMORE-4647",summary:"Enable dashboards to render data based on logged-in user",assignee:"Ushree Mazumdar",status:"Open",customer:"JAS",reporter:"Ruth Tejano"},
+  {key:"WINMORE-4721",summary:"Create Sandbox Pre Prod Environment for Flexport",assignee:"Jean Pierre Coymat",status:"Ready for Testing",customer:"Flexport",reporter:"Jean Pierre Coymat"},
+  {key:"WINMORE-4733",summary:"DPW: Users of other Org to be removed!",assignee:"Showvhick Nath",status:"Open",customer:"DP World",reporter:"Harald Wacker"},
+  {key:"WINMORE-4735",summary:"Booking Automation: Clone NA-Preprod org to lower environments",assignee:"Jyothis Shaji",status:"Ready for Testing",customer:"Rhenus",reporter:"Harald Wacker"},
+  {key:"WINMORE-4742",summary:"JAS. P3. Response time indicator",assignee:"",status:"Open",customer:"JAS",reporter:"amrutha.nanda"},
+  {key:"WINMORE-4787",summary:"Flexport rate integration",assignee:"Santhosh Kumar",status:"In Testing",customer:"Flexport",reporter:"Manjunatha"},
+  {key:"WINMORE-4788",summary:"Config for Charge Code - To create insights for JAS Worldwide on Prod",assignee:"Showvhick Nath",status:"Dev Complete",customer:"JAS",reporter:"neha.sahu"},
+  {key:"WINMORE-4792",summary:"Nippon: Delete selected default fields",assignee:"",status:"Open",customer:"Nippon",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-4857",summary:"Naming Convention Recompute Formula",assignee:"Manjunatha",status:"Open",customer:"JAS",reporter:"amrutha.nanda"},
+  {key:"WINMORE-5042",summary:"Yusen.P2.Configure Security Access",assignee:"Showvhick Nath",status:"Reopen",customer:"Yusen",reporter:"Ruth Tejano"},
+  {key:"WINMORE-5079",summary:"Data Mapping Requirement For Air Tariffs and Airport2Airport.",assignee:"Showvhick Nath",status:"Open",customer:"CHRW",reporter:"Muiz Pasha"},
+  {key:"WINMORE-5172",summary:"Yusen.P3.Update RFP Pipeline Dashboard",assignee:"Ushree Mazumdar",status:"On Hold",customer:"Yusen",reporter:"Ruth Tejano"},
+  {key:"WINMORE-5238",summary:"BCC: not working for JAS org in NA Pre-Prod. Please investigate",assignee:"Manu Kodiyan",status:"Ready for Testing",customer:"JAS",reporter:"Manu Kodiyan"},
+  {key:"WINMORE-5381",summary:"Dupre Reporting Changes",assignee:"John Ward",status:"Dev Complete",customer:"Dupre",reporter:"John Ward"},
+  {key:"WINMORE-5513",summary:"JAS CRM Demo - PreProd: Convert a Lead",assignee:"Showvhick Nath",status:"Open",customer:"JAS",reporter:"Ruth Tejano"},
+  {key:"WINMORE-5558",summary:"Nippon: SSR business rule adjustments",assignee:"Jyothis Shaji",status:"Reopen",customer:"Nippon",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-5662",summary:"Create Sandbox Pre Prod Environment for DP World",assignee:"Showvhick Nath",status:"Reopen",customer:"DP World",reporter:"David Amezquita"},
+  {key:"WINMORE-5738",summary:"Dupre: Update/Create New SFTP for TMS Files",assignee:"Showvhick Nath",status:"In Progress.",customer:"Dupre",reporter:"john.nadvornik"},
+  {key:"WINMORE-6026",summary:"Yusen.P2.Create Indexes to improve BR performance",assignee:"Showvhick Nath",status:"Open",customer:"Yusen",reporter:"Ruth Tejano"},
+  {key:"WINMORE-6270",summary:"Hard delete all columns for P&O prefixed as zz (around 500) rateAi template - fcl_ocean",assignee:"Manoj K",status:"Open",customer:"P&O",reporter:"Manoj K"},
+  {key:"WINMORE-6412",summary:"MongoDB Setup & Rule Collection Creation",assignee:"Tushar Rasal",status:"Open",customer:"Rhenus",reporter:"Tushar Rasal"},
+  {key:"WINMORE-6559",summary:"JAS - Sandbox New User Create/Roles Assignment.",assignee:"Muiz Pasha",status:"Ready for Testing",customer:"JAS",reporter:"Muiz Pasha"},
+  {key:"WINMORE-7736",summary:"Nippon dashboard errors",assignee:"Dominyka Pladyte",status:"In Testing",customer:"Nippon",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-8077",summary:"Nippon: BR adjustment (v1)",assignee:"Dominyka Pladyte",status:"In Testing",customer:"Nippon",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-8118",summary:"OIA PreProd - more fields request",assignee:"John Ward",status:"Ready for Testing",customer:"OIA",reporter:"John Ward"},
+  {key:"WINMORE-8313",summary:"Yusen OFF: Disable automatic user assignment emails",assignee:"Manoj K",status:"In Progress.",customer:"Yusen",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-8426",summary:"DPWorld DataMart Job Failure",assignee:"arjun.venugopal",status:"Dev Complete",customer:"DP World",reporter:"Karthik Chandran"},
+  {key:"WINMORE-8482",summary:"Formula Calculation Pyspark - Use env variable to specify AWS Region",assignee:"Aarif K Pasha",status:"Ready for Testing",customer:"Gebruder Weiss",reporter:"Karthik Chandran"},
+  {key:"WINMORE-8500",summary:"Disable Penske Org on Production (Org ID: 7858669)",assignee:"Manoj K",status:"In Progress.",customer:"Penske",reporter:"Manjunatha"},
+  {key:"WINMORE-8639",summary:"Integrate MSC Rate Owner Guide",assignee:"Harald Wacker",status:"Open",customer:"MSC",reporter:"David Amezquita"},
+  {key:"WINMORE-8728",summary:"Nippon: GAM/GIT Data Dashboard Request",assignee:"Dominyka Pladyte",status:"Reopen",customer:"Nippon",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-8755",summary:"Yusen AFF: Audit Trail Dashboard (Freight)",assignee:"Dominyka Pladyte",status:"In Testing",customer:"Yusen",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-8756",summary:"Yusen AFF: Audit Trail Dashboard (Destination)",assignee:"Dominyka Pladyte",status:"In Testing",customer:"Yusen",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-8786",summary:"OIA Preprod - Email notifications",assignee:"John Ward",status:"Ready for Testing",customer:"OIA",reporter:"John Ward"},
+  {key:"WINMORE-9047",summary:"Create Notifications on MSC Rate Owner Changes",assignee:"Harald Wacker",status:"Open",customer:"MSC",reporter:"Harald Wacker"},
+  {key:"WINMORE-9172",summary:"Disable all GW users from application in NA prod",assignee:"",status:"Open",customer:"Gebruder Weiss",reporter:"Manoj K"},
+  {key:"WINMORE-9206",summary:"Feasibility check for DPW: JDBC-based data ingestion into Winmore",assignee:"Ushree Mazumdar",status:"Open",customer:"DP World",reporter:"Manjunatha"},
+  {key:"WINMORE-9271",summary:"Datamart - MSC",assignee:"Ushree Mazumdar",status:"Open",customer:"MSC",reporter:"David Amezquita"},
+  {key:"WINMORE-9292",summary:"MSC PROD: Fresh pull of MDM Data (on hold)",assignee:"Ushree Mazumdar",status:"Open",customer:"MSC",reporter:"Bruno Xavier"},
+  {key:"WINMORE-9296",summary:"MSC PROD: Org cloning after MSC UAT Cutoff date",assignee:"Harald Wacker",status:"Open",customer:"MSC",reporter:"Bruno Xavier"},
+  {key:"WINMORE-9297",summary:"Nippon: Historical Transit Time business rule",assignee:"Dominyka Pladyte",status:"Test Complete",customer:"Nippon",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-9313",summary:"MSC UAT: Routing error messages are unclear & move type addition",assignee:"Harald Wacker",status:"Open",customer:"MSC",reporter:"Bruno Xavier"},
+  {key:"WINMORE-9344",summary:"Scripts to pull the data (automated)",assignee:"Harald Wacker",status:"Open",customer:"MSC",reporter:"David Amezquita"},
+  {key:"WINMORE-9358",summary:"MSC UAT: Adjust State code logic displayed on Routing modal",assignee:"Divyansh Sharma",status:"Open",customer:"MSC",reporter:"Bruno Xavier"},
+  {key:"WINMORE-9379",summary:"JAS: Postal Code Saving as part of validator",assignee:"john.nadvornik",status:"Ready for Testing",customer:"JAS",reporter:"john.nadvornik"},
+  {key:"WINMORE-9408",summary:"Recurring ELB-5XX Alerts on k8s-na1-nginxing (P&O Customer)",assignee:"Ushree Mazumdar",status:"Open",customer:"P&O",reporter:"Rakesh Kethari"},
+  {key:"WINMORE-9410",summary:"MSC UAT: Refresh the MDM Country database using a new parameter",assignee:"Harald Wacker",status:"Open",customer:"MSC",reporter:"Bruno Xavier"},
+  {key:"WINMORE-9499",summary:"JAS: V1 BR That Creates a concatenation field for JAS Lane ID for C1 Integration",assignee:"john.nadvornik",status:"Ready for Testing",customer:"JAS",reporter:"john.nadvornik"},
+  {key:"WINMORE-9522",summary:"JAS: Confirm Rules",assignee:"john.nadvornik",status:"Ready for Testing",customer:"JAS",reporter:"john.nadvornik"},
+  {key:"WINMORE-9541",summary:"MSC UAT: Enhance Routing Logic to narrow routes based on Ports/Locations/ICD Customer Requested fields",assignee:"Harald Wacker",status:"Open",customer:"MSC",reporter:"Bruno Xavier"},
+  {key:"WINMORE-9577",summary:"Sync NA-Prod releases with EU-Prod - March 6th Hotfix Release",assignee:"Jyothis Shaji",status:"Open",customer:"Gebruder Weiss",reporter:"Ushree Mazumdar"},
+  {key:"WINMORE-9614",summary:"MSC PROD: Set up Quicksight Data Connection",assignee:"Ushree Mazumdar",status:"In Progress.",customer:"MSC",reporter:"Bruno Xavier"},
+  {key:"WINMORE-9616",summary:"Yusen AFF: Tenders Overview Dashboard",assignee:"Dominyka Pladyte",status:"In Testing",customer:"Yusen",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-9655",summary:"Nippon: Admin Maintenance dashboard check",assignee:"Dominyka Pladyte",status:"In Testing",customer:"Nippon",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-9660",summary:"lanetix-workers-pusher-listen pod restarted due to unhandled error (missing ping command)",assignee:"Renjith Ramaswamy",status:"Open",customer:"MSC",reporter:"Rakesh Kethari"},
+  {key:"WINMORE-9698",summary:"P&O || Zipcode Mapping Issue.",assignee:"Varadalakshmi Nambiar",status:"In Progress.",customer:"P&O",reporter:"amrutha.nanda"},
+  {key:"WINMORE-9713",summary:"OIA Field Increase",assignee:"John Ward",status:"Ready for Testing",customer:"OIA",reporter:"John Ward"},
+  {key:"WINMORE-9723",summary:"Cargo-Partner: Increase ad-hoc limit",assignee:"Manoj K",status:"Open",customer:"Cargo Partner",reporter:"Dominyka Pladyte"},
+  {key:"WINMORE-9760",summary:"Support picker fields in pricing templates from studio.",assignee:"Renjith Ramaswamy",status:"Dev Complete",customer:"DP World",reporter:"Renjith Ramaswamy"},
+  {key:"WINMORE-9787",summary:"Grant Zendesk Access to MSC Users via MSC Org on PROD",assignee:"Harald Wacker",status:"Open",customer:"MSC",reporter:"Bruno Xavier"},
+  {key:"WINMORE-9801",summary:"CHRW dw cron job failing: canceling statement due to statement timeout",assignee:"",status:"Open",customer:"CHRW",reporter:"Rakesh Kethari"},
+  {key:"WINMORE-9830",summary:"Moving NA preprod into production",assignee:"John Ward",status:"Ready for Testing",customer:"OIA",reporter:"John Ward"},
+  {key:"WINMORE-9833",summary:"MSC UAT/PROD: Environment is refreshing when trying to upload shipper file",assignee:"Ushree Mazumdar",status:"Open",customer:"MSC",reporter:"Bruno Xavier"},
+  {key:"WINMORE-9844",summary:"Enable new Importer on Samskip Sandbox",assignee:"Giri B",status:"Open",customer:"Samskip",reporter:"David Amezquita"},
+  {key:"WINMORE-9874",summary:"Make sure ML works 100% for FCL - GW",assignee:"Aarif K Pasha",status:"In Progress.",customer:"GW",reporter:"David Amezquita"},
+  {key:"WINMORE-9877",summary:"Make sure ML works 100% for LCL - GW",assignee:"Aarif K Pasha",status:"Open",customer:"GW",reporter:"David Amezquita"},
+  {key:"WINMORE-9882",summary:"JAS|Whitelist Request \u2013 IP 10.140.32.14 for Datamart PostgreSQL Access",assignee:"siddlinga.reddy",status:"Open",customer:"JAS",reporter:"vaishaka.nalka"},
+  {key:"WINMORE-9939",summary:"Titanium API call limit",assignee:"Manoj K",status:"Open",customer:"Titanium",reporter:"John Ward"},
+  {key:"WINMORE-9951",summary:"Increase API Limit for Titanium",assignee:"",status:"Open",customer:"Titanium",reporter:"Jean Pierre Coymat"},
+  {key:"WINMORE-9993",summary:"OIA production User Lane assignment email notification",assignee:"John Ward",status:"Test Complete",customer:"OIA",reporter:"John Ward"},
+  {key:"WINMORE-10050",summary:"I have reached the column limit on AIT record Ocean FCL, could I have an additional 50 columns",assignee:"Manoj K",status:"Open",customer:"AIT",reporter:"Malcolm Sutcliffe"},
+  {key:"WINMORE-10057",summary:"JAS Road || Customer has requested for the email template in the agent collaboration.",assignee:"Renjith Ramaswamy",status:"Open",customer:"JAS",reporter:"Gana Devraj"},
+  {key:"WINMORE-10070",summary:"MSC API Test: Initial integration tests of MSC TenderOffer API",assignee:"Harald Wacker",status:"Open",customer:"MSC",reporter:"Bruno Xavier"},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""},
+  {key:"",summary:"",assignee:"",status:"",customer:"",reporter:""}
+];
+
+let suppFilter = 'All';
+let suppSearch = '';
+let suppPage = 1;
+const PAGE_SIZE = 15;
+
+function setSuppFilter(p, btn) {
+  suppFilter = p;
+  suppPage = 1;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+  renderSuppTable();
+}
+
+function filterSupport() {
+  suppSearch = document.getElementById('supp-search').value.toLowerCase();
+  suppPage = 1;
+  renderSuppTable();
+}
+
+function getFiltered() {
+  return TICKETS.filter(t => {
+    const mp = suppFilter === 'All' || t.priority === suppFilter;
+    const ms = !suppSearch || [t.subject||'', t.org, t.assignee, t.jira].join(' ').toLowerCase().includes(suppSearch);
+    return mp && ms;
+  });
+}
+
+function hrsClass(h) {
+  if (h <= 24) return 'hours-fast';
+  if (h <= 168) return 'hours-ok';
+  return 'hours-slow';
+}
+
+function priorityBadgeCls(p) {
+  return { Urgent:'badge-urgent', High:'badge-high', Normal:'badge-normal', Low:'badge-low' }[p] || 'badge-normal';
+}
+function typeBadgeCls(t) {
+  return { Bug:'badge-bug', Question:'badge-question', Task:'badge-task' }[t] || 'badge-normal';
+}
+
+function renderSuppTable() {
+  const filtered = getFiltered();
+  const total = filtered.length;
+  const start = (suppPage - 1) * PAGE_SIZE;
+  const end = Math.min(start + PAGE_SIZE, total);
+  const page = filtered.slice(start, end);
+
+  document.getElementById('supp-tbody').innerHTML = page.map(t => {
+    const cls = hrsClass(t.hours);
+    const hrsLabel = t.hours < 24 ? t.hours.toFixed(1) + 'h' : (t.hours/24).toFixed(1) + 'd';
+    const reqDate = new Date(t.requested).toLocaleDateString('en-US', {month:'short', day:'numeric'});
+    return `<tr>
+      <td class="mono">${t.id}</td>
+      <td><div class="truncate" title="${t.subject||''}">${t.subject||'—'}</div></td>
+      <td class="mono">${t.org || '—'}</td>
+      <td style="font-size:11px;white-space:nowrap">${t.assignee.split(' ').slice(0,2).join(' ')}</td>
+      <td><span class="badge ${priorityBadgeCls(t.priority)}">${t.priority}</span></td>
+      <td>${t.type ? `<span class="badge ${typeBadgeCls(t.type)}">${t.type}</span>` : '—'}</td>
+      <td class="mono">${t.jira && t.jira !== '-' ? t.jira : '—'}</td>
+      <td class="mono">${reqDate}</td>
+      <td class="hours-cell ${cls}">${hrsLabel}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--muted)">No tickets match</td></tr>';
+
+  document.getElementById('supp-page-info').textContent = `${start+1}–${end} of ${total} tickets`;
+  document.getElementById('btn-prev').disabled = suppPage === 1;
+  document.getElementById('btn-next').disabled = end >= total;
+}
+
+function changePage(dir) { suppPage += dir; renderSuppTable(); }
+
+// ── IMPLEMENTATIONS DATA ──────────────────────────────────────────────────────
+const TODAY_SERIAL = 46181;
+
+function excelToDate(s) {
+  if (!s) return null;
+  const base = new Date(1899, 11, 30);
+  return new Date(base.getTime() + s * 86400000);
+}
+function fmtDate(s) {
+  if (!s) return null;
+  return excelToDate(s).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+}
+const isOverdue = s => s && s < TODAY_SERIAL;
+const isSoon = s => s && s >= TODAY_SERIAL && s <= TODAY_SERIAL + 14;
+
+const UPDATES_RAW = [
+  {epicKey:"IM-1142",updatedAt:"2026-06-19",assignee:"@David",update:`We are progressing with the Configuration. We should be ready by end of June as planned. We are currently waiting for engineering to complete the 1:1 mapping for the mapping. This is blocking the customer for testing the configurations. This is only coming 22nd of July. That's why we are marking the Go-Live as 31st July.`},
+  {epicKey:"IM-1161",updatedAt:"2026-06-19",assignee:"@David",update:`We are progressing with the Configuration. We should be ready by end of June as planned. We are currently waiting for engineering to complete the 1:1 mapping for the mapping. This is blocking the customer for testing the configurations. This is only coming 22nd of July. That's why we are marking the Go-Live as 31st July.`},
+  {epicKey:"IM-1216",updatedAt:"2026-06-15",assignee:"@Bruno",update:`1. MVP Roadmap imminent
+The first MVP roadmap is expected by end of this week or early next week, covering July in detail and August at a high level. This is a key milestone -> it will set the development sequence for Rate Retrieval/Verticalization/Charge Attributes and will feed directly into the Steerco presentation on June 29th.
+
+2. Rate Posting kickoff confirmed for September
+Julien has scheduled an internal kickoff session to present the Rate Posting technical design to the development teams. Development is expected to start in September. This is the first concrete timeline for one of the four MVP pillars and gives the team a clear planning horizon.
+
+3. TenderOffer API Testing underway
+A ticket has been raised and assigned to Divyansh to test the MSC TenderOffer API via Postman -> specifically to put parameters down, test lanes and equipment calls, and analyse the payload. This is a foundational step for Rate Retrieval and connects to the OV Quotation API connectivity already confirmed.
+
+4. Verticalization has started
+Work on Verticalization is already ongoing and we are expecting to see some progress over the upcoming weeks and we will share the progress on the next Steerco.
+
+5. Bug debt being resolved -> key fixes deploying
+Several critical bugs are ready to deploy this week: double mapping (10019, 10031), HITL location normalisation (10029), and routing distinguishment (10032). The CO₂ routing bug (9960) and Destination City error (10006) remain under review. Overall bug resolution is accelerating ahead of the June release merge into MSC PROD/UAT most likely today or next Monday.`},
+  {epicKey:"IM-1216",updatedAt:"2026-06-08",assignee:"Bruno Xavier",update:`MSC Release Jun3rd: We have released several items to MSC environments + HITL to PROD
+
+Connectivity with OV Quotation (same as TenderOfferAPI): done with success
+
+Post MVP Workshop notes consolidation: We have finished consolidating the notes from our side, MSC still working on it. We already had the first session with MSC and we went through 20% of our consolidated topics. Result is promissing. Follow up meeting for continuation is set to next week
+
+Bugs: A considerable amount of issues/bugs/adjustments needed for HITL/Normalization/Routing - Julien was quite frustrated due to these bugs are related to items that were working as expected before`},
+  {epicKey:"IM-1142",updatedAt:"2026-06-08",assignee:"David Am\u00e9zquita",update:`We are still waiting for product and engineering to set a date for when we can have the 1:1 mapping for FCL and LCL. 
+
+We have completed the local charges. We will configure sanity checks and missing items during this and nex week.
+Customer is interested on Integrations. It's important that we make sure these items are part of the new contract.`},
+  {epicKey:"IM-1161",updatedAt:"2026-06-08",assignee:"David Am\u00e9zquita",update:`We are still waiting for product and engineering to set a date for when we can have the 1:1 mapping for FCL and LCL. 
+
+We have completed the local charges. We will configure sanity checks and missing items during this and nex week.
+Customer is interested on Integrations. It's important that we make sure these items are part of the new contract.`},
+  {epicKey:"IM-1235",updatedAt:"2026-05-29",assignee:"John Ward",update:`walk through initial stages of bid management workflow build under tender. Working towards LCL this week. AIT would like a walkthrough in Chicago June 23rd`},
+  {epicKey:"IM-1210",updatedAt:"2026-05-29",assignee:"John Ward",update:`we completed a sales training and pricing user training this week. We need to confirm api limits asap so we can move to production with integration.`},
+  {epicKey:"IM-1221",updatedAt:"2026-05-18",assignee:"Malcolm Sutcliffe",update:`Continue to align with AIT particularly on IPT, totals formulae and Ocean cost charges. Dashboard design finalized and Gana building analysis in QuickSight`}
+];
+
+function getLatestUpdate(epicKey) {
+  const all = UPDATES_RAW.filter(u => u.epicKey === epicKey);
+  if (!all.length) return null;
+  return all.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+}
+
+const EPICS = [
+  { key:"IM-1142", name:"GW - FCL Orange Template", assignee:"David Amezquita", category:"GW" },
+  { key:"IM-1161", name:"GW - LCL Orange Template", assignee:"David Amezquita", category:"GW" },
+  { key:"IM-1210", name:"Titanium - Road", assignee:"John Ward", category:"Titanium" },
+  { key:"IM-1216", name:"MSC - MVP", assignee:"Bruno Xavier", category:"MSC" },
+  { key:"IM-1221", name:"AIT - Ocean", assignee:"Malcolm Sutcliffe", category:"AIT" },
+  { key:"IM-1235", name:"AIT - Trucking (NA)", assignee:"John Ward", category:"AIT" },
+  { key:"IM-1273", name:"AIT - Customer Onboarding", assignee:"John Ward", category:"AIT" },
+  { key:"IM-1276", name:"OIA - Relaunch FCL", assignee:"John Ward", category:"OIA" }
+];
+
+const STORY_ORDER = ['Kick-off','Requirements','Configuration','Testing','Training','Go-Live'];
+
+const STORIES_RAW = [
+  {key:"IM-1129",summary:"Configuration",assignee:"",status:"In progress",due:46234,parent:"IM-1142"},
+  {key:"IM-1149",summary:"Testing",assignee:"",status:"To Do",due:46234,parent:"IM-1142"},
+  {key:"IM-1150",summary:"Kick-off",assignee:"David Amezquita",status:"Done",due:46154,parent:"IM-1142"},
+  {key:"IM-1152",summary:"Training",assignee:"",status:"To Do",due:46234,parent:"IM-1142"},
+  {key:"IM-1153",summary:"Go-Live",assignee:"",status:"To Do",due:46234,parent:"IM-1142"},
+  {key:"IM-1154",summary:"Requirements",assignee:"",status:"Done",due:46168,parent:"IM-1142"},
+  {key:"IM-1162",summary:"Configuration",assignee:"",status:"In progress",due:46234,parent:"IM-1161"},
+  {key:"IM-1170",summary:"Testing",assignee:"",status:"To Do",due:46234,parent:"IM-1161"},
+  {key:"IM-1171",summary:"Kick-off",assignee:"David Amezquita",status:"Done",due:46154,parent:"IM-1161"},
+  {key:"IM-1172",summary:"Training",assignee:"",status:"To Do",due:46234,parent:"IM-1161"},
+  {key:"IM-1173",summary:"Go-Live",assignee:"",status:"To Do",due:46234,parent:"IM-1161"},
+  {key:"IM-1174",summary:"Requirements",assignee:"",status:"Done",due:46168,parent:"IM-1161"},
+  {key:"IM-1189",summary:"Configuration",assignee:"",status:"To Do",due:null,parent:"IM-1188"},
+  {key:"IM-1202",summary:"Kick-off",assignee:"",status:"To Do",due:null,parent:"IM-1188"},
+  {key:"IM-1204",summary:"Go-Live",assignee:"",status:"To Do",due:null,parent:"IM-1188"},
+  {key:"IM-1205",summary:"Requirements",assignee:"",status:"To Do",due:null,parent:"IM-1188"},
+  {key:"IM-1219",summary:"Training",assignee:"",status:"To Do",due:null,parent:"IM-1188"},
+  {key:"IM-1220",summary:"Testing",assignee:"",status:"To Do",due:null,parent:"IM-1188"},
+  {key:"IM-1242",summary:"Kick-off",assignee:"",status:"Done",due:46043,parent:"IM-1210"},
+  {key:"IM-1243",summary:"Requirements",assignee:"",status:"Done",due:46079,parent:"IM-1210"},
+  {key:"IM-1244",summary:"Configuration",assignee:"John Ward",status:"In progress",due:46192,parent:"IM-1210"},
+  {key:"IM-1245",summary:"Testing",assignee:"John Ward",status:"In progress",due:46199,parent:"IM-1210"},
+  {key:"IM-1246",summary:"Training",assignee:"John Ward",status:"Done",due:46170,parent:"IM-1210"},
+  {key:"IM-1247",summary:"Go-Live",assignee:"John Ward",status:"To Do",due:46203,parent:"IM-1210"},
+  {key:"IM-1254",summary:"Kick-off",assignee:"Bruno Xavier",status:"Done",due:46161,parent:"IM-1216"},
+  {key:"IM-1255",summary:"Requirements",assignee:"Bruno Xavier",status:"In progress",due:46192,parent:"IM-1216"},
+  {key:"IM-1256",summary:"Configuration",assignee:"Bruno Xavier",status:"To Do",due:null,parent:"IM-1216"},
+  {key:"IM-1257",summary:"Testing",assignee:"Bruno Xavier",status:"To Do",due:null,parent:"IM-1216"},
+  {key:"IM-1258",summary:"Training",assignee:"Bruno Xavier",status:"To Do",due:null,parent:"IM-1216"},
+  {key:"IM-1259",summary:"Go-Live",assignee:"Bruno Xavier",status:"To Do",due:46387,parent:"IM-1216"},
+  {key:"IM-1222",summary:"Configuration",assignee:"Malcolm Sutcliffe",status:"In progress",due:46199,parent:"IM-1221"},
+  {key:"IM-1223",summary:"Kick-off",assignee:"David Amezquita",status:"Done",due:45778,parent:"IM-1221"},
+  {key:"IM-1224",summary:"Go-Live",assignee:"",status:"To Do",due:46210,parent:"IM-1221"},
+  {key:"IM-1225",summary:"Requirements",assignee:"",status:"Done",due:46168,parent:"IM-1221"},
+  {key:"IM-1226",summary:"Training",assignee:"",status:"Done",due:null,parent:"IM-1221"},
+  {key:"IM-1227",summary:"Testing",assignee:"",status:"Done",due:null,parent:"IM-1221"},
+  {key:"IM-1236",summary:"Kick-off",assignee:"",status:"Done",due:null,parent:"IM-1235"},
+  {key:"IM-1237",summary:"Requirements",assignee:"",status:"Done",due:null,parent:"IM-1235"},
+  {key:"IM-1238",summary:"Configuration",assignee:"John Ward",status:"In progress",due:46197,parent:"IM-1235"},
+  {key:"IM-1239",summary:"Testing",assignee:"John Ward",status:"In progress",due:46197,parent:"IM-1235"},
+  {key:"IM-1240",summary:"Training",assignee:"",status:"To Do",due:46197,parent:"IM-1235"},
+  {key:"IM-1241",summary:"Go-Live",assignee:"John Ward",status:"To Do",due:46203,parent:"IM-1235"},
+  {key:"IM-817",summary:"Configuration",assignee:"John Ward",status:"In progress",due:46203,parent:"IM-1273"},
+  {key:"IM-1275",summary:"Go Live",assignee:"John Ward",status:"To Do",due:46203,parent:"IM-1273"},
+  {key:"IM-1277",summary:"Go Live",assignee:"",status:"In progress",due:46191,parent:"IM-1276"},
+  {key:"IM-1278",summary:"Configuration",assignee:"John Ward",status:"In progress",due:46191,parent:"IM-1276"}
+];
+
+// Sort stories within each epic by STORY_ORDER
+function sortStories(stories) {
+  return [...stories].sort((a, b) => {
+    const ai = STORY_ORDER.indexOf(a.summary);
+    const bi = STORY_ORDER.indexOf(b.summary);
+    const an = ai === -1 ? 999 : ai;
+    const bn = bi === -1 ? 999 : bi;
+    return an - bn;
+  });
+}
+
+function getCurrentPhase(epicKey) {
+  const stories = sortStories(STORIES_RAW.filter(s => s.parent === epicKey));
+  const active = stories.find(s => s.status !== 'Done');
+  return active ? active.summary : 'Done';
+}
+
+function buildImplStats() {
+  const inKickReq  = EPICS.filter(e => ['Kick-off','Requirements'].includes(getCurrentPhase(e.key))).length;
+  const inConfig   = EPICS.filter(e => getCurrentPhase(e.key) === 'Configuration').length;
+  const inLate     = EPICS.filter(e => ['Testing','Training','Go-Live'].includes(getCurrentPhase(e.key))).length;
+
+  document.getElementById('impl-stats').innerHTML = [
+    { label:'Total Implementations',      value:EPICS.length, sub:'active epics',              color:'var(--accent)'  },
+    { label:'Kick-off · Requirements',    value:inKickReq,    sub:'discovery & scoping',        color:'var(--yellow)'  },
+    { label:'Configuration',              value:inConfig,     sub:'build stage',                color:'var(--orange)'  },
+    { label:'Testing · Training · Go-Live', value:inLate,     sub:'late stages',               color:'var(--green)'   },
+  ].map(c => `<div class="stat-card" style="--accent-color:${c.color}">
+    <div class="stat-label">${c.label}</div>
+    <div class="stat-value">${c.value}</div>
+    <div class="stat-sub">${c.sub}</div>
+  </div>`).join('');
+}
+
+function buildEpicGroups() {
+  const catColors = { GW:'#4f8ef7', Titanium:'#7c5cfc', MSC:'#22c55e', AIT:'#f59e0b', OIA:'#14b8a6' };
+
+  document.getElementById('epics-grid').innerHTML = EPICS.map(epic => {
+    const raw = STORIES_RAW.filter(s => s.parent === epic.key);
+    const epicStories = sortStories(raw);
+    const done = epicStories.filter(s => s.status === 'Done').length;
+    const pct = epicStories.length ? Math.round(done / epicStories.length * 100) : 0;
+    const cc = catColors[epic.category] || COLORS.accent2;
+    const progressColor = pct === 100 ? 'var(--green)' : pct > 50 ? 'var(--accent)' : 'var(--yellow)';
+
+    const goLiveStory = epicStories.find(s => s.summary === 'Go-Live');
+    const goLiveDate = goLiveStory && goLiveStory.due ? fmtDate(goLiveStory.due) : '—';
+    const goLiveTag = `<span style="font-size:10px;font-family:'DM Mono',monospace;color:var(--muted)">Go-Live: <span style="color:var(--text)">${goLiveDate}</span></span>`;
+
+    const rows = epicStories.map(s => {
+      const overdue = isOverdue(s.due) && s.status !== 'Done';
+      const soon = isSoon(s.due) && s.status !== 'Done';
+      const dueCls = !s.due ? 'no-date' : overdue ? 'overdue' : soon ? 'due-soon' : 'ok';
+      const dueTxt = s.due ? fmtDate(s.due) : '—';
+      const origTxt = s.originalDue ? `<s style="color:var(--muted);margin-right:6px;font-size:10px">${fmtDate(s.originalDue)}</s>` : '';
+      const statusCls = s.status === 'Done' ? 'badge-done' : s.status === 'In progress' ? 'badge-inprogress' : 'badge-todo';
+      return `<tr>
+        <td class="mono">${s.key}</td>
+        <td>${s.summary}</td>
+        <td><span class="badge ${statusCls}">${s.status}</span></td>
+        <td><span class="due-date ${dueCls}">
+          ${overdue ? '<span class="dot" style="background:var(--red)"></span>' : soon ? '<span class="dot" style="background:var(--yellow)"></span>' : ''}
+          ${origTxt}${dueTxt}${overdue ? ' <span style="font-size:9px">PAST DUE</span>' : ''}
+        </span></td>
+        <td class="mono">${s.assignee || '—'}</td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="epic-group" id="epic-${epic.key}">
+      <div class="epic-header" onclick="toggleEpic('${epic.key}')">
+        <div class="epic-meta">
+          <span class="epic-key">${epic.key}</span>
+          <span class="epic-name">${epic.name}</span>
+          <span class="epic-category" style="background:${cc}22;color:${cc};border:1px solid ${cc}44">${epic.category}</span>
+          ${goLiveTag}
+        </div>
+        <div class="epic-right">
+          <span class="epic-assignee">${epic.assignee}</span>
+          <span class="chevron">▼</span>
+        </div>
+      </div>
+      <div class="epic-stories hidden">
+        <table class="stories-table">
+          <thead><tr><th>Key</th><th>Story</th><th>Status</th><th>Due Date</th><th>Assignee</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        ${(() => {
+          const upd = getLatestUpdate(epic.key);
+          if (!upd) return '';
+          return `<div class="epic-update">
+            <span class="epic-update-icon">📝</span>
+            <div class="epic-update-body">
+              <div class="epic-update-meta">${upd.updatedAt} · ${upd.assignee}</div>
+              <div class="epic-update-text">${upd.update.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+            </div>
+          </div>`;
+        })()}
+        ${(() => {
+          // Map category to customer name in bugs/tasks data
+          const custMap = { GW:'Gebruder Weiss', MSC:'MSC', AIT:'AIT', Titanium:'Titanium', OIA:'OIA' };
+          const custName = custMap[epic.category];
+          if (!custName) return '';
+          const epicBugs = BUGS_RAW.filter(b => (b.customer||'').includes(custName)).slice(0,4);
+          const epicTasks = TASKS_RAW.filter(t => (t.customer||'').includes(custName)).slice(0,3);
+          if (!epicBugs.length && !epicTasks.length) return '';
+          const allItems = [
+            ...epicBugs.map(b => ({...b, _type:'bug'})),
+            ...epicTasks.map(t => ({...t, _type:'task'}))
+          ];
+          return `<div class="epic-linked">
+            <div class="epic-linked-title">🔗 Open Items · ${custName} &nbsp;<span style="font-weight:normal;color:var(--muted)">${epicBugs.length} bug${epicBugs.length!==1?'s':''} · ${epicTasks.length} task${epicTasks.length!==1?'s':''} shown</span></div>
+            <div class="epic-linked-list">
+              ${allItems.map(item => `<div class="epic-linked-item">
+                <span class="item-type-icon">${item._type==='bug'?'🐛':'✅'}</span>
+                <span class="item-key">${item.key}</span>
+                <span class="item-summary" title="${item.summary.replace(/"/g,"'")}">${item.summary}</span>
+                <span class="badge ${bugStatusCls(item.status)}" style="font-size:9px;flex-shrink:0">${item.status}</span>
+              </div>`).join('')}
+            </div>
+          </div>`;
+        })()}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleEpic(key) {
+  const g = document.getElementById('epic-' + key);
+  const s = g.querySelector('.epic-stories');
+  const open = g.classList.toggle('open');
+  s.classList.toggle('hidden', !open);
+}
+
+// ── BUGS & TASKS TAB ──────────────────────────────────────────────────────────
+let bugsCustFilter = '';
+let bugsSearch = '';
+let bugsPage = 1;
+let bugsTableMode = 'bugs'; // 'bugs' | 'tasks'
+const BUGS_PAGE_SIZE = 20;
+
+function setBugsCust(cust, btn) {
+  bugsCustFilter = cust;
+  bugsPage = 1;
+  document.querySelectorAll('.bugs-cust-btn').forEach(b => b.classList.toggle('active', b === btn));
+  renderBugsStats();
+  renderBugsTable();
+}
+
+function filterBugsTable() {
+  bugsSearch = document.getElementById('bugs-search').value.toLowerCase();
+  bugsPage = 1;
+  renderBugsTable();
+}
+
+function switchBugsTable(mode) {
+  bugsTableMode = mode;
+  bugsPage = 1;
+  document.getElementById('tab-bugs-btn').classList.toggle('active', mode === 'bugs');
+  document.getElementById('tab-tasks-btn').classList.toggle('active', mode === 'tasks');
+  renderBugsStats();
+  renderBugsTable();
+}
+
+function getBugsFiltered() {
+  const src = bugsTableMode === 'bugs' ? BUGS_RAW : TASKS_RAW;
+  return src.filter(b => {
+    const custMatch = !bugsCustFilter || (b.customer||'').includes(bugsCustFilter);
+    const searchMatch = !bugsSearch || [b.key, b.summary, b.customer, b.status, b.assignee].join(' ').toLowerCase().includes(bugsSearch);
+    return custMatch && searchMatch;
+  }).sort((a, b) => {
+    const numA = parseInt(a.key.replace(/\D/g,'')) || 0;
+    const numB = parseInt(b.key.replace(/\D/g,'')) || 0;
+    return numB - numA;
+  });
+}
+
+function bugStatusCls(s) {
+  if (!s) return 'badge-item-open';
+  const sl = s.toLowerCase();
+  if (sl.includes('reported') || sl.includes('rca') || sl.includes('support action')) return 'badge-item-blocked';
+  if (sl.includes('dev in') || sl.includes('in progress') || sl.includes('under review') || sl.includes('in testing')) return 'badge-item-inprogress';
+  if (sl.includes('complete') || sl.includes('deployment') || sl.includes('test complete') || sl.includes('dev complete')) return 'badge-item-done';
+  return 'badge-item-open';
+}
+
+function renderBugsStats() {
+  const bugs = !bugsCustFilter ? BUGS_RAW : BUGS_RAW.filter(b => (b.customer||'').includes(bugsCustFilter));
+  const tasks = !bugsCustFilter ? TASKS_RAW : TASKS_RAW.filter(t => (t.customer||'').includes(bugsCustFilter));
+  const openBugs = bugs.filter(b => !['dev complete','ready for deployment','testing complete','test complete'].some(s => b.status.toLowerCase().includes(s)));
+  const openTasks = tasks.filter(t => !['dev complete','test complete'].some(s => t.status.toLowerCase().includes(s)));
+  const inProgressBugs = bugs.filter(b => ['dev in progress','in testing','under review','ready for uat','ready for testing','rca pending','support action'].some(s => b.status.toLowerCase().includes(s)));
+
+  document.getElementById('bugs-stats').innerHTML = [
+    { label:'Total Bugs', value:bugs.length, sub:'all tracked bugs', color:'var(--red)' },
+    { label:'Open Bugs', value:openBugs.length, sub:'not yet resolved', color:'var(--orange)' },
+    { label:'In Progress', value:inProgressBugs.length, sub:'actively being worked', color:'var(--accent)' },
+    { label:'Tasks', value:tasks.length + ' / ' + openTasks.length + ' open', sub:'total / open tasks', color:'var(--teal)' },
+  ].map(c => `<div class="stat-card" style="--accent-color:${c.color}">
+    <div class="stat-label">${c.label}</div>
+    <div class="stat-value" style="font-size:${c.value.toString().length > 4 ? '20px':'30px'}">${c.value}</div>
+    <div class="stat-sub">${c.sub}</div>
+  </div>`).join('');
+}
+
+function renderBugsTable() {
+  const filtered = getBugsFiltered();
+  const total = filtered.length;
+  const start = (bugsPage - 1) * BUGS_PAGE_SIZE;
+  const end = Math.min(start + BUGS_PAGE_SIZE, total);
+  const page = filtered.slice(start, end);
+
+  document.getElementById('bugs-tbody').innerHTML = page.map(b => `<tr>
+    <td class="mono" style="white-space:nowrap">${b.key}</td>
+    <td><div class="truncate" style="max-width:380px" title="${b.summary.replace(/"/g,"'")}">${b.summary}</div></td>
+    <td style="font-size:11px;white-space:nowrap">${b.customer||'—'}</td>
+    <td><span class="badge ${bugStatusCls(b.status)}" style="font-size:9px">${b.status||'—'}</span></td>
+    <td style="font-size:11px;white-space:nowrap;color:var(--muted)">${b.assignee||'—'}</td>
+  </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--muted)">No items match</td></tr>';
+
+  document.getElementById('bugs-page-info').textContent = total ? `${start+1}–${end} of ${total}` : '0 results';
+  document.getElementById('bugs-btn-prev').disabled = bugsPage === 1;
+  document.getElementById('bugs-btn-next').disabled = end >= total;
+}
+
+function changeBugsPage(dir) { bugsPage += dir; renderBugsTable(); }
+
+// ── TAB SWITCHING ─────────────────────────────────────────────────────────────
+let chartsBuilt = false;
+let bugsBuilt = false;
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', ['implementations','support','bugs'][i] === name);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  if (name === 'support' && !chartsBuilt) {
+    chartsBuilt = true;
+    buildCharts();
+  }
+  if (name === 'bugs' && !bugsBuilt) {
+    bugsBuilt = true;
+    renderBugsStats();
+    renderBugsTable();
+  }
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+buildImplStats();
+buildEpicGroups();
+buildSuppStats();
+</script>
+</body>
+</html>
